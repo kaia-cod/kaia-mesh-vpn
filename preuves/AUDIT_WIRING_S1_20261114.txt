@@ -1,0 +1,84 @@
+AUDIT CABLAGE main.go vs internal/{tunnel,peering} — 2026-11-14
+Repo : /home/ubuntu/SAM-G-Agent/workspace/kaia-mesh-vpn
+HEAD : e2092ab37b842ca1ef7a1d92a6007edc1a0c9f6e | 2026-11-14 10:08:23 +0000
+Go    : go1.22.2 linux/amd64 | module github.com/kaia-cod/kaia-mesh-vpn
+
+=== VERDICT GLOBAL : NON CABLE (peering = partiel/inerte, tunnel = absent) ===
+
+--- A. internal/peering ---
+Importe : OUI — cmd/meshd/main.go:23
+Appels  : main.go:72  table := peering.NewTable()
+          main.go:73  table.Upsert(peering.Entry{VirtualIP: vip, PeerID: h.ID()})
+MAIS    : la table est un objet local jamais propage. Aucun consumer :
+          - aucun abonnement PubSub (topic.Subscribe absent du main)
+          - aucune ecriture depuis les annonces des pairs
+          - table.Lookup / LookupPeer / Remove jamais appeles hors tests
+          - table non passee a une couche de routage/transfert
+=> peering = WIRING COSMETIQUE (compile, sans effet fonctionnel).
+
+--- B. internal/tunnel ---
+Importe : NON — aucun import "internal/tunnel" dans cmd/ ni internal/ hors
+          internal/tunnel/loopback_test.go (test uniquement).
+grep -rn "internal/tunnel|tunnel\." cmd/ internal/ --include=*.go ->
+  seuls hits = internal/tunnel/loopback_test.go:33,72,77,102,105,108
+=> tunnel = NON CABLE DANS LE DEMON.
+
+--- C. Contenu reel de internal/tunnel (perimetre) ---
+internal/tunnel/ contient UNIQUEMENT :
+  codec.go        : Encode/Decode (framing uint32 BE + MaxPacket) et
+                    ExtractDstVIP (bytes 16..20 de l'en-tete IPv4)
+  codec_test.go, loopback_test.go
+ABSENT : aucune creation d'interface TUN (/dev/net/tun), aucun ioctl, aucun
+         binding libp2p stream (le protocole "/kaia-mesh/1.0.0" n'existe que
+         dans loopback_test.go), aucun pump TUN<->stream.
+grep "NewTUN|water|wireguard" go.mod -> seul hit : github.com/pion/stun (indirect, sans rapport).
+
+--- D. Forwarding IP reel ---
+grep "Forward|forward|NAT|ip_forward|TUN|tun2socks" sur *.go non-test ->
+  seul hit : internal/node/node.go:32 libp2p.EnableNATService() (traversal NAT
+  libp2p, PAS de forwarding IP de paquets).
+- Flag -socket : declare (main.go:31) et affiche (main.go:78) mais JAMAIS
+  utilise pour creer un socket : argument decoratif.
+=> Aucun chemin de donnees n'existe : un paquet vers une VIP distante n'a
+   aucun code pour etre lu, route via peering.Lookup, envoye dans un stream et
+   reinjecte. Ping VIP->VIP impossible par construction, quel que soit le materiel.
+
+--- E. TUN existant ailleurs (plateformes clientes, pas le demon) ---
+android/app/src/main/java/com/kaia/meshvpn/MeshVpnService.kt (VpnService Android)
+windows/KaiaMesh.App/TunnelManager.cs + WintunInterop.cs
+=> TUN cote client mobile/Windows seulement ; RIEN cote daemon Linux (meshd).
+
+--- F. Tests Go ---
+GOMAXPROCS=1 GOFLAGS=-p=1 GOCACHE=/tmp/gocache_light go test ./internal/... -count=1 -v
+TEST_RC=0 — 4 packages OK :
+  internal/config  PASS (TestParseVirtualIP, TestDefaultValid)
+  internal/node    [no test files]
+  internal/peering PASS (TestTable)
+  internal/tunnel  PASS (TestCodecRoundTrip, TestLoopbackEncryptedHandshake :
+                   echange chiffre Noise OK entre 2 noeuds libp2p reels en loopback,
+                   aller-retour 60 octets IPv4 identiques, aucun octet en clair)
+Log complet : /tmp/gotest_s1.log
+
+--- G. Build ---
+GOMAXPROCS=1 go build -o /tmp/meshd_s1 ./cmd/meshd -> BUILD_RC=0
+binaire 37 421 104 octets
+
+=== CAUSE RACINE DU BLOCAGE ===
+Deux manques distincts, pas un probleme d'environnement :
+1. internal/tunnel est une bibliotheque de framing seule ; il n'existe AUCUN
+   device TUN Linux ni AUCUN binding de stream libp2p dans le daemon.
+2. internal/peering est instancie mais la table n'est ni alimentee par le
+   reseau ni consommee par un routeur : c'est un objet inerte.
+Donc un "cablage dans main.go" ne peut pas etre constate : le code a cabler
+n'existe pas encore. Le test 2 noeuds + ping VIP->VIP est infaisable en l'etat
+et n'a pas ete lance (le lancer produirait un faux negatif sans valeur).
+
+=== CE QU'IL FAUDRAIT POUR DEBLOQUER (prochain lot) ===
+1. internal/tunnel/tun_linux.go : ouverture /dev/net/tun (TUNSETIFF, IFF_TUN|IFF_NO_PI)
+2. binding stream libp2p : enregistrer "/kaia-mesh/1.0.0", pump TUN->Encode->stream
+   et stream->Decode->Write(TUN)
+3. alimenter peering.Table depuis topic.Subscribe + router ExtractDstVIP -> Lookup -> peer
+4. main.go : instancier le TUN, le router, brancher les 2 pumps ; rendre -socket effectif
+5. topologie de test : 2 netns (ip netns) + meshd -vip 10.42.0.1 / .2,
+   puis ping -I tunX 10.42.0.2 (necessite CAP_NET_ADMIN ; hote actuel 1 vCPU/1 Go
+   = a faire en CI GitHub Actions runner, pas en local)

@@ -21,3 +21,7 @@ kaia-mesh-vpn/
 # preuves versionnées (exception à *.log)
 !docs/proofs/*.log
 dist/
+
+# build artifacts / backups
+android/app/build/
+android/app/src/main/jniLibs.bak/

@@ -1,0 +1,37 @@
+?   	github.com/kaia-cod/kaia-mesh-vpn/cmd/meshd	[no test files]
+=== RUN   TestParseVirtualIP
+--- PASS: TestParseVirtualIP (0.00s)
+=== RUN   TestDefaultValid
+--- PASS: TestDefaultValid (0.00s)
+PASS
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/config	0.003s
+?   	github.com/kaia-cod/kaia-mesh-vpn/internal/node	[no test files]
+=== RUN   TestAnnouncementRoundTrip
+--- PASS: TestAnnouncementRoundTrip (0.00s)
+=== RUN   TestFormatEmitsCanonicalPeerID
+--- PASS: TestFormatEmitsCanonicalPeerID (0.00s)
+=== RUN   TestParseAnnouncementRejectsGarbage
+--- PASS: TestParseAnnouncementRejectsGarbage (0.00s)
+=== RUN   TestTable
+--- PASS: TestTable (0.00s)
+PASS
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/peering	0.006s
+=== RUN   TestCodecRoundTrip
+--- PASS: TestCodecRoundTrip (0.00s)
+=== RUN   TestLoopbackEncryptedHandshake
+    loopback_test.go:64: nœud A: peer=12D3KooWBVgYwn4C5USSzZRZ46b5ReHzJ9rDr6G2th8DMVNcgsBa addrs=[/ip4/127.0.0.1/tcp/41849]
+    loopback_test.go:65: nœud B: peer=12D3KooWCZyrttvoyvtm9oSbZMxY1BuSnWgrpVEFXf7CmPW4k7VD addrs=[/ip4/127.0.0.1/tcp/44013]
+    loopback_test.go:91: connexion B -> A établie, adresse distante: /ip4/127.0.0.1/tcp/41849
+    loopback_test.go:98: stream négocié sur le protocole "/kaia-mesh/1.0.0"
+    loopback_test.go:115: aller-retour OK: 60 octets IPv4 identiques à travers le tunnel
+    loopback_test.go:133: ciphertext/contrôle: aucun octet du payload transmis n'apparaît en clair
+    loopback_test.go:135: PASS: échange chiffré Noise vérifié entre deux nœuds libp2p réels en loopback
+--- PASS: TestLoopbackEncryptedHandshake (0.02s)
+PASS
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/tunnel	0.035s
+
+TEST_RC=0
+DATE=2026-11-14T15:50:21+00:00
+GO=go version go1.22.2 linux/amd64
+HEAD_BEFORE=e2092ab
+6c43e90e60f948d8ce30a69b0fd2ca394a3707dd1215d52daf445616c8fa65c9  preuves/GO_TEST_FULL_20261114_155014_PASS.log

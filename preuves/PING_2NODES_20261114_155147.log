@@ -1,0 +1,71 @@
+=== S2 — TEST REEL 2 NOEUDS NETNS + PING VIP->VIP ===
+date: 2026-11-14T15:51:47Z
+host: Linux x86_64 | go: go version go1.22.2 linux/amd64
+binaire: /tmp/meshd_s2 37485729 o
+
+--- TOPOLOGIE ---
+netns ka: veth-ka 192.168.99.1/24 | VIP 10.42.0.1 sur TUN kaiamesh
+netns kb: veth-kb 192.168.99.2/24 | VIP 10.42.0.2 sur TUN kaiamesh
+underlay ping ka->kb: 2/2 recu, 0% loss
+
+--- NOEUD B (listener, VIP 10.42.0.2) ---
+meshd ready: PeerID=12D3KooWNu5DX62nGZS34R6y6zdJP5AsRCXTfjB67ZrB9QC2qCuM virtualIP=10.42.0.2
+listen: /ip4/127.0.0.1/tcp/46675/p2p/12D3KooWNu5DX62nGZS34R6y6zdJP5AsRCXTfjB67ZrB9QC2qCuM
+listen: /ip4/192.168.99.2/tcp/46675/p2p/12D3KooWNu5DX62nGZS34R6y6zdJP5AsRCXTfjB67ZrB9QC2qCuM
+datapath up: iface=kaiamesh vip=10.42.0.2 mtu=1400
+announced on kaia-mesh/announce/1.0.0, socket=
+2026/11/14 15:51:22 tunnel: send: extract dst: not an IPv4 packet
+2026/11/14 15:51:26 tunnel: send: extract dst: not an IPv4 packet
+2026/11/14 15:51:33 tunnel: send: extract dst: not an IPv4 packet
+
+--- NOEUD A (dialer, VIP 10.42.0.1) ---
+meshd ready: PeerID=12D3KooWQTRQLocNCgdXrQwUQaLwKVHxEJv2JBQWginaNVtqFUBM virtualIP=10.42.0.1
+listen: /ip4/127.0.0.1/tcp/43887/p2p/12D3KooWQTRQLocNCgdXrQwUQaLwKVHxEJv2JBQWginaNVtqFUBM
+listen: /ip4/192.168.99.1/tcp/43887/p2p/12D3KooWQTRQLocNCgdXrQwUQaLwKVHxEJv2JBQWginaNVtqFUBM
+datapath up: iface=kaiamesh vip=10.42.0.1 mtu=1400
+announced on kaia-mesh/announce/1.0.0, socket=
+CONNECTED peer=12D3KooWNu5DX62nGZS34R6y6zdJP5AsRCXTfjB67ZrB9QC2qCuM addr=/ip4/192.168.99.2/tcp/46675/p2p/12D3KooWNu5DX62nGZS34R6y6zdJP5AsRCXTfjB67ZrB9QC2qCuM
+PEERS count=1
+LINK peer=12D3KooWNu5DX62nGZS34R6y6zdJP5AsRCXTfjB67ZrB9QC2qCuM remote=/ip4/192.168.99.2/tcp/46675
+2026/11/14 15:51:34 tunnel: send: extract dst: not an IPv4 packet
+2026/11/14 15:51:38 tunnel: send: extract dst: not an IPv4 packet
+2026/11/14 15:51:46 tunnel: send: extract dst: not an IPv4 packet
+
+--- PING VIP->VIP  10.42.0.1 -> 10.42.0.2 ---
+PING 10.42.0.2 (10.42.0.2) 56(84) bytes of data.
+64 bytes from 10.42.0.2: icmp_seq=1 ttl=64 time=1.33 ms
+64 bytes from 10.42.0.2: icmp_seq=2 ttl=64 time=0.501 ms
+64 bytes from 10.42.0.2: icmp_seq=3 ttl=64 time=0.548 ms
+64 bytes from 10.42.0.2: icmp_seq=4 ttl=64 time=0.566 ms
+64 bytes from 10.42.0.2: icmp_seq=5 ttl=64 time=0.518 ms
+
+--- 10.42.0.2 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4106ms
+rtt min/avg/max/mdev = 0.501/0.692/1.328/0.318 ms
+
+--- PING INVERSE  10.42.0.2 -> 10.42.0.1 ---
+PING 10.42.0.1 (10.42.0.1) 56(84) bytes of data.
+64 bytes from 10.42.0.1: icmp_seq=1 ttl=64 time=0.459 ms
+64 bytes from 10.42.0.1: icmp_seq=2 ttl=64 time=0.577 ms
+64 bytes from 10.42.0.1: icmp_seq=3 ttl=64 time=0.815 ms
+
+--- 10.42.0.1 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2032ms
+rtt min/avg/max/mdev = 0.459/0.617/0.815/0.148 ms
+
+--- COMPTEURS TUN (paquets reellement traites par le datapath) ---
+[ka]
+    RX:  bytes packets errors dropped  missed   mcast           
+           672       8      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+           816      11      0       0       0       0 
+[kb]
+    RX:  bytes packets errors dropped  missed   mcast           
+           672       8      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+           816      11      0       0       0       0 
+
+--- VERDICT ---
+PING_FWD_REPLIES=5/5 | PING_REV_REPLIES=3/3
+TUN_PRESENT=YES | PEERING_WIRED=YES | DATAPATH=tunnel libp2p /kaia-mesh/1.0.0
+PING_OK=YES | RESULT: PASS

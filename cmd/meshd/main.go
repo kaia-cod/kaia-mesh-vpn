@@ -21,6 +21,7 @@ import (
 	"github.com/kaia-cod/kaia-mesh-vpn/internal/config"
 	"github.com/kaia-cod/kaia-mesh-vpn/internal/node"
 	"github.com/kaia-cod/kaia-mesh-vpn/internal/peering"
+	"github.com/kaia-cod/kaia-mesh-vpn/internal/tunnel"
 )
 
 func main() {
@@ -31,6 +32,7 @@ func main() {
 		socketPath = flag.String("socket", "", "Unix socket for local apps (Android/Windows)")
 		connect    = flag.String("connect", "", "comma-separated peer multiaddrs to dial explicitly at startup")
 		runFor     = flag.Duration("for", 0, "exit after this duration instead of running until SIGINT/SIGTERM (0 = forever)")
+		ifaceName  = flag.String("iface", "kaiamesh", "TUN interface name (empty = no datapath, control plane only)")
 	)
 	flag.Parse()
 
@@ -72,8 +74,40 @@ func main() {
 	table := peering.NewTable()
 	table.Upsert(peering.Entry{VirtualIP: vip, PeerID: h.ID()})
 
-	announce := fmt.Sprintf("vip=%s peer=%s", cfg.VirtualIP, h.ID())
-	_ = topic.Publish(ctx, []byte(announce))
+	// Feed the routing table from mesh announcements (real peers -> VIPs).
+	peering.SubscribeToAnnouncements(ctx, topic, table)
+
+	announce := peering.Announcement{VirtualIP: vip, PeerID: h.ID()}
+	// Publish repeatedly: GossipSub only delivers to peers that are already
+	// connected and subscribed, and peers join the topic after us. A single
+	// one-shot publish at startup is invisible to every later peer.
+	go func() {
+		tick := time.NewTicker(2 * time.Second)
+		defer tick.Stop()
+		for {
+			if err := topic.Publish(ctx, []byte(announce.Format())); err != nil && ctx.Err() == nil {
+				log.Printf("peering: announce: %v", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-tick.C:
+			}
+		}
+	}()
+
+	// Bring up the data path: TUN device <-> libp2p streams.
+	if *ifaceName != "" {
+		tunDev, err := tunnel.OpenTUN(*ifaceName)
+		if err != nil {
+			log.Printf("datapath disabled: %v", err)
+		} else {
+			dp := tunnel.NewDataPath(h, tunDev, table, cfg.Mtu)
+			dp.Start()
+			defer dp.Close()
+			fmt.Printf("datapath up: iface=%s vip=%s mtu=%d\n", tunDev.Name(), cfg.VirtualIP, cfg.Mtu)
+		}
+	}
 
 	fmt.Printf("announced on %s, socket=%s\n", cfg.AnnounceTopic, *socketPath)
 
