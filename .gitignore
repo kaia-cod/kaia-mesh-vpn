@@ -20,3 +20,4 @@ kaia-mesh-vpn/
 
 # preuves versionnées (exception à *.log)
 !docs/proofs/*.log
+dist/

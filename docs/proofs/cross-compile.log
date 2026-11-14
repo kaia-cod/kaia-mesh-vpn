@@ -1,0 +1,20 @@
+# Preuve cross-compile meshd — 2026-11-14T07:05:14Z
+# hôte: go version go1.22.2 linux/amd64, 1 vCPU, CGO_ENABLED=0, -trimpath -ldflags="-s -w"
+
+$ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags="-s -w" -o dist/meshd-linux-arm64 ./cmd/meshd
+EXIT_ARM64=0
+
+$ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o dist/meshd-windows-amd64.exe ./cmd/meshd
+EXIT_WINDOWS=0
+
+$ ls -l dist/
+24314008 dist/meshd-linux-arm64
+25612800 dist/meshd-windows-amd64.exe
+
+$ file dist/meshd-linux-arm64 dist/meshd-windows-amd64.exe
+dist/meshd-linux-arm64:       ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=q7nA5u84UhF_4pAcp62t/q0eHxUbehvJNae9OyfaA/W7par7Am30Clz42ssojK/SF2_dWtIUVqnm1xn-nRX, stripped
+dist/meshd-windows-amd64.exe: PE32+ executable (console) x86-64, for MS Windows, 8 sections
+
+$ sha256sum
+807c0a57b3584c9316f55752c18c068a499879f844fb9daed64e8a054b6dccda  dist/meshd-linux-arm64
+cb16b5c8e0cd031d3d04a5f7a2e66269fcc3583830daf40cf689479e953ccf67  dist/meshd-windows-amd64.exe
