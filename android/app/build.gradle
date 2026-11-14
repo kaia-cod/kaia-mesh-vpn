@@ -28,9 +28,14 @@ android {
 
     // Keep the cross-compiled Go daemon (libmeshd.so) uncompressed and page
     // aligned so it can be executed straight from the APK on Android 6+.
+    // S3 fix: pure Go ELF must not be stripped by AGP; useLegacyPackaging
+    // true ensures lib/ is packaged as legacy jniLibs and not validated
+    // as DSO with NDK strip. doNotStrip + keepDebugSymbols for libmeshd.so.
     packagingOptions {
         jniLibs {
-            useLegacyPackaging = false
+            useLegacyPackaging = true
+            doNotStrip "**/libmeshd.so"
+            keepDebugSymbols += ["**/libmeshd.so"]
         }
     }
 

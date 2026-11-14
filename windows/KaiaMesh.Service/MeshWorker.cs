@@ -43,6 +43,5 @@ public sealed class MeshWorker : BackgroundService
         try { _daemon?.Kill(); } catch { }
         _daemon?.Dispose();
         base.Dispose();
-        GC.SuppressFinalize(this);
     }
 }
