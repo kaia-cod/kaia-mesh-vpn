@@ -7,10 +7,10 @@ import android.content.Intent
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.net.LocalSocket
-import java.net.LocalSocketAddress
 
 /**
  * Bridge between Android's VpnService TUN interface and the meshd daemon
