@@ -17,3 +17,6 @@ e2e-proof.log
 
 # accidental nested duplicate directory (path-doubling bug)
 kaia-mesh-vpn/
+
+# preuves versionnées (exception à *.log)
+!docs/proofs/*.log

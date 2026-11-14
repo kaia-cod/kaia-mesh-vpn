@@ -1,0 +1,12 @@
+=== RUN   TestLoopbackEncryptedHandshake
+    loopback_test.go:64: nœud A: peer=12D3KooWNoMvk8NNmig3RFje7ukj4fmnKhFfmPm9iM4XtyNUMqdx addrs=[/ip4/127.0.0.1/tcp/43323]
+    loopback_test.go:65: nœud B: peer=12D3KooWKQDDLCuzYGynJPrBpEjiXaUiaZvoPjkwm7vx4RE7sXsn addrs=[/ip4/127.0.0.1/tcp/44161]
+    loopback_test.go:91: connexion B -> A établie, adresse distante: /ip4/127.0.0.1/tcp/43323
+    loopback_test.go:98: stream négocié sur le protocole "/kaia-mesh/1.0.0"
+    loopback_test.go:115: aller-retour OK: 60 octets IPv4 identiques à travers le tunnel
+    loopback_test.go:133: ciphertext/contrôle: aucun octet du payload transmis n'apparaît en clair
+    loopback_test.go:135: PASS: échange chiffré Noise vérifié entre deux nœuds libp2p réels en loopback
+--- PASS: TestLoopbackEncryptedHandshake (0.02s)
+PASS
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/tunnel	(cached)
+exit_code=0

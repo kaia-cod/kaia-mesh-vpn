@@ -1,0 +1,8 @@
+# go test ./... — 2026-11-14T07:02:58Z — go go1.22.2 — 1 vCPU
+
+?   	github.com/kaia-cod/kaia-mesh-vpn/cmd/meshd	[no test files]
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/config	0.003s
+?   	github.com/kaia-cod/kaia-mesh-vpn/internal/node	[no test files]
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/peering	0.004s
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/tunnel	0.035s
+EXIT=0
