@@ -1,0 +1,53 @@
+name: Go core + E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: go test + 2-node E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Canonical gate - go vet
+        run: go vet ./...
+
+      - name: Canonical gate - go test ./...
+        id: gotest
+        run: |
+          set -o pipefail
+          go test ./... -count=1 | tee /tmp/go-test.log
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Report go test exit code
+        if: always()
+        run: echo "go test ./... exit code was ${{ steps.gotest.outputs.exit_code }}"
+
+      - name: Build meshd (linux/amd64)
+        run: go build -trimpath -o meshd ./cmd/meshd
+
+      - name: Two-node end-to-end proof
+        run: bash scripts/e2e_test.sh "$RUNNER_TEMP/e2e-proof.log"
+
+      - name: Upload E2E log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-proof
+          path: ${{ runner.temp }}/e2e-proof.log
+
+      - name: Upload go test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-test-log
+          path: /tmp/go-test.log

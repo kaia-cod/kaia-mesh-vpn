@@ -13,6 +13,16 @@ android {
         targetSdk 34
         versionCode 1
         versionName '0.1.0'
+        // Only ship the native meshd daemon we actually build in CI.
+        ndk { abiFilters 'arm64-v8a' }
+    }
+
+    // Keep the cross-compiled Go daemon (libmeshd.so) uncompressed and page
+    // aligned so it can be executed straight from the APK on Android 6+.
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
     }
 
     buildTypes {

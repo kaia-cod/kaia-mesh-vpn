@@ -1,0 +1,48 @@
+name: Windows build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build solution on windows-latest
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore windows/KaiaMesh.sln
+
+      - name: Build (Release)
+        id: build
+        shell: pwsh
+        run: |
+          dotnet build windows/KaiaMesh.sln -c Release --no-restore
+          $code = $LASTEXITCODE
+          "exit_code=$code" >> $env:GITHUB_OUTPUT
+          Write-Host "dotnet build exit code = $code"
+          exit $code
+
+      - name: Assert outputs exist
+        shell: pwsh
+        run: |
+          $found = Get-ChildItem -Recurse -Path windows -Include KaiaMesh.dll,KaiaMesh.exe,KaiaMesh.Service.dll,KaiaMesh.Service.exe |
+                   Where-Object { $_.FullName -match 'Release' }
+          $found | ForEach-Object { Write-Host "$($_.FullName) - $($_.Length) bytes" }
+          if (-not $found) { Write-Error "no Release build outputs found"; exit 1 }
+          $found | Out-File -FilePath build-outputs.txt -Encoding utf8
+
+      - name: Upload build outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaia-mesh-windows-release
+          path: |
+            windows/**/bin/Release/**
+            build-outputs.txt

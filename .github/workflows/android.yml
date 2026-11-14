@@ -1,0 +1,85 @@
+name: Android APK (with meshd arm64-v8a)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build meshd arm64 + assemble APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cross-compile meshd for arm64-v8a (CGO disabled, pure Go)
+        run: |
+          set -euo pipefail
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a
+          CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
+            go build -trimpath -ldflags="-s -w" \
+            -o android/app/src/main/jniLibs/arm64-v8a/libmeshd.so ./cmd/meshd
+
+      - name: Assert meshd arm64 binary is non-empty and correctly typed
+        run: |
+          set -euo pipefail
+          BIN=android/app/src/main/jniLibs/arm64-v8a/libmeshd.so
+          test -f "$BIN" || { echo "::error::meshd arm64 binary missing"; exit 1; }
+          SIZE=$(stat -c%s "$BIN")
+          echo "meshd arm64-v8a size = $SIZE bytes"
+          test "$SIZE" -gt 1000000 || { echo "::error::binary suspiciously small ($SIZE)"; exit 1; }
+          file "$BIN"
+          file "$BIN" | grep -q 'ARM aarch64' || { echo "::error::not an aarch64 ELF"; exit 1; }
+          echo "meshd_arm64_size=$SIZE" >> "$GITHUB_ENV"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Assert meshd is packaged inside the APK
+        run: |
+          set -euo pipefail
+          APK=$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)
+          echo "APK: $APK"
+          unzip -l "$APK" | tee /tmp/apk-contents.txt
+          grep -q 'lib/arm64-v8a/libmeshd.so' /tmp/apk-contents.txt \
+            || { echo "::error::meshd not packaged in the APK"; exit 1; }
+          UNPACKED=$(grep 'lib/arm64-v8a/libmeshd.so' /tmp/apk-contents.txt | awk '{print $1}')
+          echo "meshd inside APK = $UNPACKED bytes"
+          test "$UNPACKED" -gt 1000000 || { echo "::error::packaged meshd too small"; exit 1; }
+          {
+            echo "### Android build proof"
+            echo ""
+            echo "- meshd arm64-v8a (standalone): **${{ env.meshd_arm64_size }} bytes**"
+            echo "- meshd packaged in APK: **$UNPACKED bytes**"
+            echo "- APK: \`$(basename "$APK")\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaia-mesh-vpn-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+
+      - name: Upload standalone meshd arm64-v8a
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshd-arm64-v8a
+          path: android/app/src/main/jniLibs/arm64-v8a/libmeshd.so

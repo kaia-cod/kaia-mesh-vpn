@@ -9,3 +9,8 @@ local.properties
 .vscode/
 .DS_Store
 /vendor/
+meshd
+/meshd
+android/app/src/main/jniLibs/
+*.apk
+e2e-proof.log
