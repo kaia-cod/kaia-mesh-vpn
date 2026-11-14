@@ -85,6 +85,34 @@ go build -o meshd ./cmd/meshd
 On startup the daemon prints its PeerID and virtual IP, then announces itself on
 the `kaia-mesh/announce/1.0.0` topic so other nodes can reach it.
 
+### Verify two nodes really peer (link test)
+
+`-connect` dials explicit multiaddrs at startup instead of relying on mDNS/DHT
+discovery, and `-for` bounds the run — this makes a real link test scriptable
+and reproducible. Start node A, then point node B at one of A's printed
+`listen:` lines:
+
+```bash
+# terminal 1 — node A, announces itself and waits 25s
+./meshd -identity a.seed -vip 10.42.0.1 -for 25s
+
+# terminal 2 — node B, dials A explicitly (use A's /ip4/.../p2p/<A-PeerID>)
+./meshd -identity b.seed -vip 10.42.0.2 -for 12s \
+  -connect /ip4/127.0.0.1/tcp/<A-port>/p2p/<A-PeerID>
+```
+
+Node B prints machine-readable lines you can assert on in CI:
+
+```
+CONNECTED peer=<A-PeerID> addr=/ip4/127.0.0.1/tcp/<A-port>/p2p/<A-PeerID>
+PEERS count=1
+LINK peer=<A-PeerID> remote=/ip4/127.0.0.1/tcp/<A-port>
+```
+
+`PEERS` is read back from the live connection table after dialing, not from the
+dial call, so a `count=1` with a `LINK` line is proof the two nodes are
+genuinely connected. A failed attempt prints `DIAL-FAILED <peer>: <reason>`.
+
 ### Android
 
 See [`android/README.md`](android/README.md): open the project in Android Studio,

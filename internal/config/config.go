@@ -10,14 +10,14 @@ import (
 
 // Config describes a Kaia Mesh node.
 type Config struct {
-	ListenAddrs     []string
-	BootstrapPeers  []string
-	VirtualIP       net.IP
-	AnnounceTopic   string
-	TunnelProto     string
-	PeerProto       string
-	Mtu             int
-	IdentitySeed    []byte
+	ListenAddrs    []string
+	BootstrapPeers []string
+	VirtualIP      net.IP
+	AnnounceTopic  string
+	TunnelProto    string
+	PeerProto      string
+	Mtu            int
+	IdentitySeed   []byte
 }
 
 const (
@@ -29,11 +29,11 @@ const (
 // Default returns a sane default configuration.
 func Default() Config {
 	return Config{
-		ListenAddrs:    []string{"/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/udp/0/quic"},
-		AnnounceTopic:  AnnounceTopic,
-		TunnelProto:    TunnelProto,
-		PeerProto:      PeerProto,
-		Mtu:            1400,
+		ListenAddrs:   []string{"/ip4/0.0.0.0/tcp/0", "/ip4/0.0.0.0/udp/0/quic"},
+		AnnounceTopic: AnnounceTopic,
+		TunnelProto:   TunnelProto,
+		PeerProto:     PeerProto,
+		Mtu:           1400,
 	}
 }
 
