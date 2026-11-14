@@ -1,112 +1,146 @@
 package com.kaia.meshvpn
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.VpnService
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.widget.Button
 import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import android.Manifest
-import android.content.pm.PackageManager
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kaia.meshvpn.mesh.MeshViewModel
+import com.kaia.meshvpn.mesh.TunnelState
+import com.kaia.meshvpn.ui.KaiaApp
+import com.kaia.meshvpn.ui.theme.KaiaMeshTheme
 
 /**
- * S3 FIX: Cold-start crash root cause #1 was Theme incompatibility (AppCompatActivity + android:Theme.Material).
- * Fixed in themes.xml -> Theme.Material3.DayNight.NoActionBar parent.
- * This Activity now keeps ONLY setContentView and UI binding.
- * All heavy init (mesh/libp2p/Noise) is lazy and deferred until user taps Enable.
- * onCreate is wrapped in try/catch with fallback Toast to never crash immediately at launch.
+ * Écran principal — Jetpack Compose.
+ *
+ * Le contenu de l'écran (état du tunnel, adresse virtuelle, pairs, compteurs,
+ * journal) vient EXCLUSIVEMENT de [MeshViewModel], alimenté par les diffusions
+ * réelles de MeshVpnService et du démon meshd.
+ *
+ * Sécurité cold-start (acquis S3) : aucune initialisation lourde dans
+ * onCreate ; le contenu Compose est enveloppé d'un try/catch avec repli texte
+ * afin de ne jamais provoquer de crash immédiat au lancement.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "KaiaMain"
+        private const val REQ_NOTIF = 42
+    }
+
+    private val vm: MeshViewModel by viewModels()
+
+    private val vpnPermission = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            vm.noteLocal("INFO", "Consentement VPN accordé · démarrage")
+            vm.setTunnel(TunnelState.PREPARING)
+            MeshVpnService.start(this)
+        } else {
+            vm.setTunnel(TunnelState.DISCONNECTED, "Autorisation VPN refusée")
+            vm.noteLocal("WARN", "Autorisation VPN refusée par l'utilisateur")
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         try {
             super.onCreate(savedInstanceState)
         } catch (e: Exception) {
-            // Extreme fallback: if even super.onCreate theme crashes, log and show minimal view without AppCompat
-            Log.e(TAG, "super.onCreate failed - theme mismatch still present", e)
-            // Prevent hard crash: fallback to framework Activity style if needed
-            // We still try to continue with a basic view
+            Log.e(TAG, "super.onCreate failed", e)
         }
 
+        askNotificationPermission()
+
         try {
-            val text = TextView(this).apply {
-                text = "Kaia Mesh VPN\n\nPeer-to-peer VPN built on IPFS.\nNo central server: the tunnel is encrypted (Noise) and peers discover each other over the IPFS DHT."
-                textSize = 16f
-                setPadding(48, 96, 48, 32)
-            }
-            val button = Button(this).apply { this.text = "Enable tunnel" }
-            button.setOnClickListener {
-                try {
-                    requestVpn()
-                } catch (e: Exception) {
-                    Log.e(TAG, "requestVpn failed", e)
-                    Toast.makeText(this, getString(R.string.error_init, e.message ?: "unknown"), Toast.LENGTH_LONG).show()
+            setContent {
+                KaiaMeshTheme {
+                    val model by vm.state.collectAsStateWithLifecycle()
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        KaiaApp(
+                            model = model,
+                            onConnect = ::connectTunnel,
+                            onDisconnect = ::disconnectTunnel,
+                        )
+                    }
                 }
             }
-
-            val layout = android.widget.LinearLayout(this).apply {
-                orientation = android.widget.LinearLayout.VERTICAL
-                setPadding(24, 24, 24, 24)
-                addView(text)
-                addView(button)
-            }
-            setContentView(layout)
-
-            // Permission check is safe to do lazily after view is displayed
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE)
-                != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.FOREGROUND_SERVICE),
-                    42
-                )
-            }
-            Log.i(TAG, "onCreate success - home screen displayed")
+            Log.i(TAG, "Compose UI affichée")
         } catch (e: Exception) {
-            Log.e(TAG, "onCreate UI init failed", e)
-            try {
-                val fallback = TextView(this).apply {
-                    text = "Erreur init: ${e.message}\n\nVeuillez réinstaller."
-                    setPadding(48, 48, 48, 48)
+            Log.e(TAG, "Compose init failed, repli texte", e)
+            setContentView(
+                TextView(this).apply {
+                    text = "Kaia Mesh VPN\n\nErreur d'initialisation de l'interface : ${e.message}"
+                    setPadding(48, 96, 48, 48)
+                    setTextColor(Color.WHITE)
                 }
-                setContentView(fallback)
-                Toast.makeText(this, "Init error: ${e.message}", Toast.LENGTH_LONG).show()
-            } catch (_: Exception) {
-                // Last resort: avoid crash, do nothing
-            }
+            )
         }
     }
 
-    private fun requestVpn() {
+    override fun onStart() {
+        super.onStart()
+        vm.onStart(this)
+    }
+
+    override fun onStop() {
+        vm.onStop(this)
+        super.onStop()
+    }
+
+    /** Demande l'autorisation VPN puis démarre le service. */
+    private fun connectTunnel() {
         try {
-            val intent = VpnService.prepare(this)
-            if (intent != null) {
-                startActivityForResult(intent, 7)
+            vm.setTunnel(TunnelState.PREPARING)
+            val consent = VpnService.prepare(this)
+            if (consent != null) {
+                vm.noteLocal("INFO", "Autorisation VPN demandée par Android")
+                vpnPermission.launch(consent)
             } else {
-                startService(Intent(this, MeshVpnService::class.java))
+                vm.noteLocal("INFO", "Consentement VPN déjà accordé · démarrage")
+                MeshVpnService.start(this)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "requestVpn exception", e)
-            Toast.makeText(this, "VPN start failed: ${e.message}", Toast.LENGTH_LONG).show()
+            Log.e(TAG, "connectTunnel failed", e)
+            vm.setTunnel(TunnelState.ERROR, "Démarrage impossible : ${e.message}")
         }
     }
 
-    @Suppress("DEPRECATION")
+    private fun disconnectTunnel() {
+        runCatching { MeshVpnService.stop(this) }
+            .onFailure { vm.setTunnel(TunnelState.ERROR, "Arrêt impossible : ${it.message}") }
+        vm.noteLocal("INFO", "Déconnexion demandée")
+    }
+
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            == PackageManager.PERMISSION_GRANTED
+        ) return
+        runCatching {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIF)
+        }
+    }
+
+    @Deprecated("Conservé pour compat < AndroidX 1.9")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         try {
+            @Suppress("DEPRECATION")
             super.onActivityResult(requestCode, resultCode, data)
-            if (requestCode == 7 && resultCode == RESULT_OK) {
-                startService(Intent(this, MeshVpnService::class.java))
-            }
         } catch (e: Exception) {
             Log.e(TAG, "onActivityResult failed", e)
         }

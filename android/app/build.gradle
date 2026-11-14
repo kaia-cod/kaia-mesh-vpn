@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
 }
 
 android {
@@ -11,11 +12,10 @@ android {
         applicationId 'com.kaia.meshvpn'
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName '0.1.1-fix-crash'
+        versionCode 3
+        versionName '0.2.0-ui'
         ndk { abiFilters 'arm64-v8a' }
         // S4: alléger mergeDebugResources
-        resourceConfigurations += ['en']
     }
 
     compileOptions {
@@ -27,11 +27,19 @@ android {
         jvmTarget = "17"
     }
 
+    buildFeatures {
+        compose = true
+    }
+
+    // S5 : pas de jvmToolchain (le runner CI n'a pas de JDK17 détectable par toolchain)
+
+
     // S4 anti-OOM: desactiver crunch png, legacy packaging
     aaptOptions {
         cruncherEnabled = false
     }
 
+    // libmeshd.so doit être extrait dans nativeLibraryDir pour être copié puis exécuté
     packagingOptions {
         jniLibs {
             useLegacyPackaging = true
@@ -62,4 +70,18 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
+
+    // UI déclarative
+    implementation platform('androidx.compose:compose-bom:2024.09.03')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-core'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+    implementation 'androidx.activity:activity-compose:1.9.2'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.6'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
 }
