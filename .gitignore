@@ -1,0 +1,11 @@
+/meshd
+/meshd.exe
+*.log
+bin/
+obj/
+.gradle/
+local.properties
+.idea/
+.vscode/
+.DS_Store
+/vendor/
