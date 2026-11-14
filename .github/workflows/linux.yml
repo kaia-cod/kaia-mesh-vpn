@@ -1,0 +1,63 @@
+name: Linux build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ubuntu-latest (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test ./...
+        run: go test ./... -count=1
+
+      - name: Build meshd (linux/${{ matrix.arch }})
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -trimpath -ldflags="-s -w" -o meshd-linux-${{ matrix.arch }} ./cmd/meshd
+          ls -la meshd-linux-${{ matrix.arch }}
+          file meshd-linux-${{ matrix.arch }}
+
+      - name: Smoke run (help)
+        run: |
+          ./meshd-linux-${{ matrix.arch }} --help > help-${{ matrix.arch }}.txt 2>&1 || true
+          head -40 help-${{ matrix.arch }}.txt
+
+      - name: Two-node E2E on ${{ matrix.arch }} (native only)
+        if: matrix.arch == 'amd64'
+        run: bash scripts/e2e_test.sh "$RUNNER_TEMP/e2e-proof-linux-amd64.log"
+
+      - name: Upload E2E log
+        if: always() && matrix.arch == 'amd64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-proof-linux-amd64
+          path: ${{ runner.temp }}/e2e-proof-linux-amd64.log
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaia-mesh-linux-${{ matrix.arch }}
+          path: |
+            meshd-linux-${{ matrix.arch }}
+            help-${{ matrix.arch }}.txt
