@@ -8,8 +8,9 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ matrix.arch == 'arm64' && 'macos-latest' || 'macos-13' }} (${{ matrix.arch }})
-    runs-on: ${{ matrix.arch == 'arm64' && 'macos-latest' || 'macos-13' }}
+    name: Build on macos-latest (${{ matrix.arch }})
+    runs-on: macos-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
