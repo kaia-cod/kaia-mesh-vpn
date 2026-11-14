@@ -28,15 +28,15 @@ import com.kaia.meshvpn.ui.KaiaApp
 import com.kaia.meshvpn.ui.theme.KaiaMeshTheme
 
 /**
- * Écran principal — Jetpack Compose.
+ * Main screen — Jetpack Compose.
  *
- * Le contenu de l'écran (état du tunnel, adresse virtuelle, pairs, compteurs,
- * journal) vient EXCLUSIVEMENT de [MeshViewModel], alimenté par les diffusions
- * réelles de MeshVpnService et du démon meshd.
+ * Everything shown (tunnel state, virtual address, peers, counters, log) comes
+ * EXCLUSIVELY from [MeshViewModel], fed by the real broadcasts of
+ * MeshVpnService and of the meshd daemon.
  *
- * Sécurité cold-start (acquis S3) : aucune initialisation lourde dans
- * onCreate ; le contenu Compose est enveloppé d'un try/catch avec repli texte
- * afin de ne jamais provoquer de crash immédiat au lancement.
+ * Cold-start safety: no heavy initialisation in onCreate; the Compose content
+ * is wrapped in a try/catch with a plain-text fallback so that launch never
+ * crashes immediately.
  */
 class MainActivity : ComponentActivity() {
 
@@ -51,12 +51,12 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            vm.noteLocal("INFO", "Consentement VPN accordé · démarrage")
+            vm.noteLocal("INFO", "VPN consent granted · starting")
             vm.setTunnel(TunnelState.PREPARING)
             MeshVpnService.start(this)
         } else {
-            vm.setTunnel(TunnelState.DISCONNECTED, "Autorisation VPN refusée")
-            vm.noteLocal("WARN", "Autorisation VPN refusée par l'utilisateur")
+            vm.setTunnel(TunnelState.DISCONNECTED, "VPN authorization denied")
+            vm.noteLocal("WARN", "VPN authorization denied by the user")
         }
     }
 
@@ -82,14 +82,14 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            Log.i(TAG, "Compose UI affichée")
+            Log.i(TAG, "Compose UI rendered")
         } catch (e: Exception) {
-            Log.e(TAG, "Compose init failed, repli texte", e)
+            Log.e(TAG, "Compose init failed, text fallback", e)
             setContent {
                 KaiaMeshTheme {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         Text(
-                            text = "Kaia Mesh VPN\n\nErreur d'initialisation de l'interface : ${e.message}",
+                            text = "Kaia Mesh VPN\n\nUI initialization error: ${e.message}",
                             color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(24.dp),
                             fontSize = 16.sp,
@@ -110,28 +110,28 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** Demande l'autorisation VPN puis démarre le service. */
+    /** Requests the VPN consent, then starts the service. */
     private fun connectTunnel() {
         try {
             vm.setTunnel(TunnelState.PREPARING)
             val consent = VpnService.prepare(this)
             if (consent != null) {
-                vm.noteLocal("INFO", "Autorisation VPN demandée par Android")
+                vm.noteLocal("INFO", "VPN authorization requested by Android")
                 vpnPermission.launch(consent)
             } else {
-                vm.noteLocal("INFO", "Consentement VPN déjà accordé · démarrage")
+                vm.noteLocal("INFO", "VPN consent already granted · starting")
                 MeshVpnService.start(this)
             }
         } catch (e: Exception) {
             Log.e(TAG, "connectTunnel failed", e)
-            vm.setTunnel(TunnelState.ERROR, "Démarrage impossible : ${e.message}")
+            vm.setTunnel(TunnelState.ERROR, "Start failed: ${e.message}")
         }
     }
 
     private fun disconnectTunnel() {
         runCatching { MeshVpnService.stop(this) }
-            .onFailure { vm.setTunnel(TunnelState.ERROR, "Arrêt impossible : ${it.message}") }
-        vm.noteLocal("INFO", "Déconnexion demandée")
+            .onFailure { vm.setTunnel(TunnelState.ERROR, "Stop failed: ${it.message}") }
+        vm.noteLocal("INFO", "Disconnect requested")
     }
 
     private fun askNotificationPermission() {
@@ -144,7 +144,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Deprecated("Conservé pour compat < AndroidX 1.9")
+    @Deprecated("Kept for compatibility with < AndroidX 1.9")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         try {
             @Suppress("DEPRECATION")

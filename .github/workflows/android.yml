@@ -32,6 +32,10 @@ jobs:
           test -n "$SDK" || { echo "::error::no Android SDK env var"; exit 1; }
           test -d "$SDK" || { echo "::error::SDK dir missing: $SDK"; exit 1; }
           ls "$SDK" | head -20
+          # Belt and braces: Gradle also reads sdk.dir from local.properties, so the
+          # build keeps working even if the runner only exposes one of the two vars.
+          echo "sdk.dir=$SDK" > android/local.properties
+          cat android/local.properties
 
       - name: Cross-compile meshd for arm64-v8a (CGO disabled, pure Go)
         run: |
@@ -85,14 +89,16 @@ jobs:
           set -euo pipefail
           APK=$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)
           echo "APK: $APK"
+          test -n "$APK" || { echo "::error::no debug APK produced"; exit 1; }
+          ls -l "$APK"
           unzip -l "$APK" | tee /tmp/apk-contents.txt
           grep -q 'lib/arm64-v8a/libmeshd.so' /tmp/apk-contents.txt \
             || { echo "::error::meshd not packaged in the APK"; exit 1; }
-          # NOTE: the APK legitimately contains BOTH lib/arm64-v8a/libmeshd.so (jniLibs)
-          # and assets/lib/arm64-v8a/libmeshd.so, so a plain grep matches 2 lines.
-          # Match the JNI entry by exact name ($NF) and keep a single value, otherwise
-          # $UNPACKED becomes "26870081 26870081" and `test` fails with "Illegal number: 26870081".
-          UNPACKED=$(awk '$NF == "lib/arm64-v8a/libmeshd.so" { print $1; exit }' /tmp/apk-contents.txt)
+          # Robust check: Python zipfile gives real uncompressed sizes. Parsing
+          # `zipinfo -l` / `unzip -lv` text columns was the fragile part that made
+          # earlier runs fail on a perfectly valid APK.
+          python3 .github/scripts/assert_apk_meshd.py "$APK" | tee /tmp/apk-assert.log
+          UNPACKED=$(grep -oP 'meshd inside APK = \K[0-9]+' /tmp/apk-assert.log | head -1)
           UNPACKED=$(echo "$UNPACKED" | tr -dc '0-9')
           echo "meshd inside APK = $UNPACKED bytes"
           test -n "$UNPACKED" || { echo "::error::could not read meshd size from APK listing"; exit 1; }
@@ -102,7 +108,7 @@ jobs:
             echo ""
             echo "- meshd arm64-v8a (standalone): **${{ env.meshd_arm64_size }} bytes**"
             echo "- meshd packaged in APK: **$UNPACKED bytes**"
-            echo "- APK: \`$(basename "$APK")\`"
+            echo "- APK: `$(basename "$APK")`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload APK

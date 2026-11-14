@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -24,6 +25,10 @@ import (
 	"github.com/kaia-cod/kaia-mesh-vpn/internal/tunnel"
 )
 
+// version is bumped with the Android app; `meshd --version` prints it together
+// with the build target so on-device tests can prove the binary ABI.
+const version = "0.2.0"
+
 func main() {
 	var (
 		virtualIP  = flag.String("vip", "10.42.0.1", "virtual IP on the mesh (10.42.x.y)")
@@ -33,8 +38,19 @@ func main() {
 		connect    = flag.String("connect", "", "comma-separated peer multiaddrs to dial explicitly at startup")
 		runFor     = flag.Duration("for", 0, "exit after this duration instead of running until SIGINT/SIGTERM (0 = forever)")
 		ifaceName  = flag.String("iface", "kaiamesh", "TUN interface name (empty = no datapath, control plane only)")
+		tunFD      = flag.Uint("tunfd", 0, "adopt an already-open TUN file descriptor (Android VpnService, 0 = create one via -iface)")
+		showVer    = flag.Bool("version", false, "print version and build target, then exit 0")
 	)
 	flag.Parse()
+
+	// Fast, side-effect-free probe: the Android instrumented test executes the
+	// binary extracted into nativeLibraryDir with this flag to prove the exec
+	// bit and the ABI actually work on the device (no network, no TUN).
+	if *showVer {
+		fmt.Printf("meshd %s (%s/%s, %s)\n",
+			version, runtime.GOOS, runtime.GOARCH, runtime.Version())
+		return
+	}
 
 	vip, err := config.ParseVirtualIP(*virtualIP)
 	if err != nil {
@@ -97,8 +113,16 @@ func main() {
 	}()
 
 	// Bring up the data path: TUN device <-> libp2p streams.
-	if *ifaceName != "" {
-		tunDev, err := tunnel.OpenTUN(*ifaceName)
+	// Two ways to obtain the TUN: Android hands us the descriptor created by
+	// VpnService.establish() (-tunfd), otherwise we open /dev/net/tun (-iface).
+	if *tunFD != 0 || *ifaceName != "" {
+		var tunDev *tunnel.TUN
+		var err error
+		if *tunFD != 0 {
+			tunDev, err = tunnel.OpenTUNFromFD(uintptr(*tunFD), *ifaceName)
+		} else {
+			tunDev, err = tunnel.OpenTUN(*ifaceName)
+		}
 		if err != nil {
 			log.Printf("datapath disabled: %v", err)
 		} else {

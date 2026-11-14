@@ -1,49 +1,49 @@
 package com.kaia.meshvpn.mesh
 
 /**
- * Unique source de vérité de l'UI.
+ * Single source of truth for the UI.
  *
- * RÈGLE D'HONNÊTETÉ : aucun champ de ce modèle n'est fabriqué côté UI.
- * Tout vient soit du service (état du tunnel), soit du démon meshd
- * (événements JSON lus sur la socket locale). Si une donnée manque,
- * elle reste à zéro / liste vide et l'écran le DIT explicitement.
+ * HONESTY RULE: no field of this model is fabricated on the UI side.
+ * Everything comes either from the service (tunnel state) or from the meshd
+ * daemon (JSON events read on the local socket). If a value is missing it
+ * stays at zero / empty and the screen SAYS so explicitly.
  */
 
-/** État du tunnel TUN (rapporté par MeshVpnService). */
+/** TUN tunnel state (reported by MeshVpnService). */
 enum class TunnelState {
     DISCONNECTED,
-    PREPARING,     // autorisation VPN demandée / service en démarrage
-    CONNECTING,    // TUN levé, en attente du démon meshd
-    CONNECTED,     // TUN levé + démon joignable + datapath actif
-    ERROR,         // échec (cause dans [MeshModel.error])
+    PREPARING,     // VPN consent requested / service starting
+    CONNECTING,    // TUN up, waiting for the meshd daemon
+    CONNECTED,     // TUN up + daemon reachable + datapath active
+    ERROR,         // failure (cause in [MeshModel.error])
     ;
 
     val isBusy: Boolean get() = this == PREPARING || this == CONNECTING
     val isUp: Boolean get() = this == CONNECTED
 }
 
-/** Un pair du maillage tel qu'annoncé par meshd (jamais inventé). */
+/** A mesh peer as announced by meshd (never invented). */
 data class MeshPeer(
     val virtualIp: String,
     val peerId: String,
     val shortId: String,
-    val direction: String,      // "inbound" | "outbound" | "?" (rapporté par le démon)
+    val direction: String,      // "inbound" | "outbound" | "?" (reported by the daemon)
     val lastSeenMs: Long = 0L,
 )
 
-/** Compteurs du datapath (rapportés par le démon, seconde par seconde). */
+/** Datapath counters (reported by the daemon, second by second). */
 data class TrafficStats(
-    val rxBytes: Long = 0L,        // mesh -> TUN (reçu du maillage)
-    val txBytes: Long = 0L,        // TUN -> mesh (envoyé au maillage)
+    val rxBytes: Long = 0L,        // mesh -> TUN (received from the mesh)
+    val txBytes: Long = 0L,        // TUN -> mesh (sent to the mesh)
     val rxPps: Long = 0L,
     val txPps: Long = 0L,
     val droppedNoRoute: Long = 0L,
 )
 
-/** Une ligne du journal (événement réel : service, démon, système). */
+/** One log line (real event: service, daemon, system). */
 data class LogLine(val timeMs: Long, val level: String, val text: String)
 
-/** Modèle complet exposé à Compose. */
+/** Full model exposed to Compose. */
 data class MeshModel(
     val tunnel: TunnelState = TunnelState.DISCONNECTED,
     val virtualIp: String = "",
@@ -56,7 +56,7 @@ data class MeshModel(
     val logs: List<LogLine> = emptyList(),
     val error: String? = null,
 ) {
-    /** Version courte d'un identifiant de pair (affichage compact). */
+    /** Short form of a peer id (compact display). */
     companion object {
         fun shortPeerId(id: String): String =
             if (id.length <= 14) id else id.substring(0, 8) + "…" + id.takeLast(4)

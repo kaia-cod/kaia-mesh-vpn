@@ -103,7 +103,7 @@ fun KaiaMeshTheme(
     )
 }
 
-/** Couleur associée à un niveau de journal. */
+/** Colour associated with a log level. */
 fun levelColor(level: String): Color = when (level.uppercase()) {
     "ERROR" -> Danger
     "WARN" -> Amber

@@ -1,10 +1,10 @@
 <resources>
     <string name="app_name">Kaia Mesh VPN</string>
     <string name="vpn_channel_name">Kaia Mesh VPN</string>
-    <string name="vpn_channel_desc">Tunnel VPN peer-to-peer</string>
-    <string name="vpn_notif_title">Kaia Mesh VPN actif</string>
+    <string name="vpn_channel_desc">Peer-to-peer VPN tunnel</string>
+    <string name="vpn_notif_title">Kaia Mesh VPN active</string>
     <string name="vpn_notif_text">Tunnel running — peer-to-peer over IPFS</string>
     <string name="enable_tunnel">Enable tunnel</string>
     <string name="intro">Peer-to-peer VPN built on IPFS. No central server: the tunnel is encrypted (Noise) and peers discover each other over the IPFS DHT.</string>
-    <string name="error_init">Erreur d\'initialisation: %1$s</string>
+    <string name="error_init">Initialization error: %1$s</string>
 </resources>

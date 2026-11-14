@@ -15,12 +15,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel de l'écran unique.
+ * ViewModel of the single screen.
  *
- * Il ne calcule AUCUNE donnée métier : il agrège ce que le service publie
- * (MESH_STATE / MESH_PEERS / MESH_STATS / MESH_LOG) et le convertit en
- * [MeshModel]. La liste des pairs reste vide tant que le démon n'annonce
- * personne — et l'UI affiche alors « Aucun nœud pair » avec son explication.
+ * It computes NO business data: it aggregates what the service publishes
+ * (MESH_STATE / MESH_PEERS / MESH_STATS / MESH_LOG) and turns it into
+ * [MeshModel]. The peer list stays empty as long as the daemon announces
+ * nobody — and the UI then shows "No peer node" with its explanation.
  */
 class MeshViewModel : ViewModel() {
 
@@ -59,11 +59,11 @@ class MeshViewModel : ViewModel() {
                             else -> "INFO"
                         },
                         when (tunnel) {
-                            TunnelState.CONNECTED -> "Tunnel connecté · meshd pid=$pid · VIP=$vip"
-                            TunnelState.CONNECTING -> "TUN levé (VIP=$vip) · attente du démon meshd"
-                            TunnelState.PREPARING -> "Préparation : autorisation VPN / démarrage du service"
-                            TunnelState.DISCONNECTED -> "Tunnel arrêté"
-                            TunnelState.ERROR -> "Échec du tunnel : ${err ?: "cause inconnue"}"
+                            TunnelState.CONNECTED -> "Tunnel connected · meshd pid=$pid · VIP=$vip"
+                            TunnelState.CONNECTING -> "TUN up (VIP=$vip) · waiting for meshd daemon"
+                            TunnelState.PREPARING -> "Preparing: VPN authorization / service start"
+                            TunnelState.DISCONNECTED -> "Tunnel stopped"
+                            TunnelState.ERROR -> "Tunnel failed: ${err ?: "unknown cause"}"
                         }
                     )
                 }
@@ -132,14 +132,14 @@ class MeshViewModel : ViewModel() {
         receiver = null
     }
 
-    /** Met à jour le modèle avec un événement produit localement (démarrage demandé…). */
+    /** Updates the model with a locally produced event (start requested, ...). */
     fun noteLocal(level: String, text: String) = appendLog(level, text)
 
     fun setTunnel(state: TunnelState, error: String? = null) {
         _state.update { it.copy(tunnel = state, error = error) }
     }
 
-    /** Demande au service son état courant (écran qui revient au premier plan). */
+    /** Asks the service for its current state (screen returning to the foreground). */
     fun requestSnapshot(ctx: Context) {
         viewModelScope.launch {
             runCatching {
