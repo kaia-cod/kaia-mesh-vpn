@@ -8,8 +8,8 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ matrix.arch == 'arm64' && 'macos-latest' || 'macos-latest' }} (${{ matrix.arch }})
-    runs-on: macos-latest
+    name: Build on ${{ matrix.arch == 'arm64' && 'macos-latest' || 'macos-13' }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'macos-latest' || 'macos-13' }}
     strategy:
       fail-fast: false
       matrix:
