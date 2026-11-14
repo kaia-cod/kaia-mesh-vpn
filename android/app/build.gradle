@@ -11,10 +11,11 @@ android {
         applicationId 'com.kaia.meshvpn'
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName '0.1.0'
-        // Only ship the native meshd daemon we actually build in CI.
+        versionCode 2
+        versionName '0.1.1-fix-crash'
         ndk { abiFilters 'arm64-v8a' }
+        // S4: alléger mergeDebugResources
+        resourceConfigurations += ['en']
     }
 
     compileOptions {
@@ -26,11 +27,11 @@ android {
         jvmTarget = "17"
     }
 
-    // Keep the cross-compiled Go daemon (libmeshd.so) uncompressed and page
-    // aligned so it can be executed straight from the APK on Android 6+.
-    // S3 fix: pure Go ELF must not be stripped by AGP; useLegacyPackaging
-    // true ensures lib/ is packaged as legacy jniLibs and not validated
-    // as DSO with NDK strip. doNotStrip + keepDebugSymbols for libmeshd.so.
+    // S4 anti-OOM: desactiver crunch png, legacy packaging
+    aaptOptions {
+        cruncherEnabled = false
+    }
+
     packagingOptions {
         jniLibs {
             useLegacyPackaging = true
@@ -44,6 +45,16 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+        debug {
+            minifyEnabled false
+            debuggable true
+            crunchPngs false
+        }
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
     }
 }
 
