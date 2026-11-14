@@ -1,0 +1,30 @@
+# meshd runtime proof — commit/push verification pass
+
+```
+=== MESHD PROOF 2026-11-14T06:52:18Z ===
+HEAD=fb34bda0c44cede780cfcbed21d67bf9eb5706e6
+GO=go version go1.22.2 linux/amd64
+
+--- go vet ---
+VET_RC=0
+
+--- go test ---
+?   	github.com/kaia-cod/kaia-mesh-vpn/cmd/meshd	[no test files]
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/config	(cached)
+?   	github.com/kaia-cod/kaia-mesh-vpn/internal/node	[no test files]
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/peering	(cached)
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/tunnel	(cached)
+TEST_RC=0
+
+--- go build ---
+BUILD_RC=0
+-rwxr-xr-x 1 ubuntu ubuntu 37421096 Nov 14 06:52 /tmp/meshd_proof
+
+=== RUN meshd 2026-11-14T06:52:35Z ===
+meshd ready: PeerID=12D3KooWNZMdoafNuTLSri8XuRTHjev7RACKDdBM1NjecZWHyKvy virtualIP=10.42.0.1
+listen: /ip4/127.0.0.1/tcp/46659/p2p/12D3KooWNZMdoafNuTLSri8XuRTHjev7RACKDdBM1NjecZWHyKvy
+listen: /ip4/172.16.0.5/tcp/46659/p2p/12D3KooWNZMdoafNuTLSri8XuRTHjev7RACKDdBM1NjecZWHyKvy
+announced on kaia-mesh/announce/1.0.0, socket=
+run window elapsed, shutting down
+RUN_RC=0
+```
