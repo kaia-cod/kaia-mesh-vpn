@@ -88,9 +88,15 @@ jobs:
           unzip -l "$APK" | tee /tmp/apk-contents.txt
           grep -q 'lib/arm64-v8a/libmeshd.so' /tmp/apk-contents.txt \
             || { echo "::error::meshd not packaged in the APK"; exit 1; }
-          UNPACKED=$(grep 'lib/arm64-v8a/libmeshd.so' /tmp/apk-contents.txt | awk '{print $1}')
+          # NOTE: the APK legitimately contains BOTH lib/arm64-v8a/libmeshd.so (jniLibs)
+          # and assets/lib/arm64-v8a/libmeshd.so, so a plain grep matches 2 lines.
+          # Match the JNI entry by exact name ($NF) and keep a single value, otherwise
+          # $UNPACKED becomes "26870081 26870081" and `test` fails with "Illegal number: 26870081".
+          UNPACKED=$(awk '$NF == "lib/arm64-v8a/libmeshd.so" { print $1; exit }' /tmp/apk-contents.txt)
+          UNPACKED=$(echo "$UNPACKED" | tr -dc '0-9')
           echo "meshd inside APK = $UNPACKED bytes"
-          test "$UNPACKED" -gt 1000000 || { echo "::error::packaged meshd too small"; exit 1; }
+          test -n "$UNPACKED" || { echo "::error::could not read meshd size from APK listing"; exit 1; }
+          test "$UNPACKED" -gt 1000000 || { echo "::error::packaged meshd too small ($UNPACKED)"; exit 1; }
           {
             echo "### Android build proof"
             echo ""
