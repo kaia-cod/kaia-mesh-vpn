@@ -65,11 +65,18 @@ jobs:
           # cold resolution without lock. AGP 8.5.2 plugin resolves from
           # google() first (settings.gradle pluginManagement order fixed).
 
+      - name: Verify runner memory headroom for R8/D8
+        run: |
+          set -euo pipefail
+          free -m || true
+          nproc || true
+          grep -E '^org\.gradle\.jvmargs' android/gradle.properties
+
       - name: Build debug APK
         working-directory: android
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon :app:assembleDebug --stacktrace --info --warning-mode all 2>&1 | tee /tmp/gradle-build.log
+          ./gradlew --no-daemon :app:assembleDebug --stacktrace --warning-mode all 2>&1 | tee /tmp/gradle-build.log
           echo "---- gradle build tail ----"
           tail -200 /tmp/gradle-build.log || true
 
