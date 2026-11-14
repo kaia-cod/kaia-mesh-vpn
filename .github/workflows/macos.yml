@@ -8,8 +8,8 @@ on:
 
 jobs:
   build:
-    name: Build on macos-latest (${{ matrix.arch }})
-    runs-on: macos-latest
+    name: Build on ${{ matrix.arch == 'arm64' && 'macos-latest' || 'macos-13' }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'macos-latest' || 'macos-13' }}
     strategy:
       fail-fast: false
       matrix:
@@ -19,13 +19,17 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: '1.23'
           cache: true
 
       - name: go vet
+        env:
+          CGO_ENABLED: 0
         run: go vet ./...
 
       - name: go test ./...
+        env:
+          CGO_ENABLED: 0
         run: go test ./... -count=1
 
       - name: Build meshd (darwin/${{ matrix.arch }})
@@ -39,6 +43,8 @@ jobs:
           file meshd-darwin-${{ matrix.arch }}
 
       - name: Smoke run (prints node id and exits)
+        env:
+          CGO_ENABLED: 0
         run: |
           ./meshd-darwin-${{ matrix.arch }} --help > help-${{ matrix.arch }}.txt 2>&1 || true
           head -40 help-${{ matrix.arch }}.txt
