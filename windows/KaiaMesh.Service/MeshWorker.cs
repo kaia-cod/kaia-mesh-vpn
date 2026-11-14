@@ -11,6 +11,7 @@ public sealed class MeshWorker : BackgroundService
 {
     private readonly ILogger<MeshWorker> _log;
     private Process? _daemon;
+    private bool _disposed;
 
     public MeshWorker(ILogger<MeshWorker> log) => _log = log;
 
@@ -38,17 +39,12 @@ public sealed class MeshWorker : BackgroundService
         }
     }
 
-    private bool _disposed;
-
-    protected override void Dispose(bool disposing)
+    public override void Dispose()
     {
         if (_disposed) return;
-        if (disposing)
-        {
-            try { _daemon?.Kill(); } catch { }
-            _daemon?.Dispose();
-        }
+        try { _daemon?.Kill(); } catch { }
+        _daemon?.Dispose();
         _disposed = true;
-        base.Dispose(disposing);
+        base.Dispose();
     }
 }
