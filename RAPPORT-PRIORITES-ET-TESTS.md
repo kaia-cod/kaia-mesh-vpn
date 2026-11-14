@@ -15,7 +15,7 @@ de façon professionnelle sur GitHub **avant** de commencer le test ».
 |---|---|---|
 | P1 | README professionnel visible sur GitHub | ✅ **déjà fait et vérifié** |
 | P2 | Tests : compilation, unitaires, bout-en-bout | ✅ **fait et vérifié** |
-| P3 | CI GitHub Actions | ⏳ lancée, gates vertes au moment du rapport |
+| P3 | CI GitHub Actions | ✅ **SUCCESS (run complet)** |
 
 Le README n'a **pas** été réécrit à l'aveugle : j'ai d'abord vérifié ce que
 GitHub sert réellement. Le point de relais indiquait un ancien README de 3
@@ -46,7 +46,7 @@ Le README est de qualité professionnelle :
 
 - 4 badges (MIT, Go 1.22+, libp2p v0.36.5, Android|Windows) ;
 - pitch de 3 lignes + section « Why » avec cas d'usage concrets ;
-- diagramme d'architecture ASCII + tableau des composants (7 lignes) ;
+- diagramme d'architecture ASCII + tableau des composants ;
 - commandes de build testables, y compris cross-compilation Android/Windows ;
 - **tableau de référence complet des drapeaux `meshd`** (6 drapeaux, type, défaut, description) ;
 - section de vérification manuelle à 2 nœuds + section de test automatisé ;
@@ -55,7 +55,7 @@ Le README est de qualité professionnelle :
 **Honnêteté technique vérifiée :** le README déclare explicitement que le pont
 `-socket` est « accepted and printed at startup, but the bridge is **not
 implemented yet** ». C'est exact : `internal/config` parse bien le drapeau,
-`internal/node` ne contient aucun fichier de test (voir §4). Aucune promesse
+`internal/node` ne contient aucun fichier de test (voir §3.3). Aucune promesse
 non tenue.
 
 Description du dépôt, confirmée via l'API :
@@ -66,13 +66,13 @@ Description du dépôt, confirmée via l'API :
 
 1. Pas de section « Quick start » de 30 secondes : le premier `go build` arrive
    après 2 sections de contexte. Un lecteur pressé doit scroller.
-2. Le README affirme que les clients Android/Windows sont « built on
-   VpnService / Wintun », alors que `docs/ROADMAP.md` les classe en
-   « v0.1 — skeleton ». Le mot *skeleton* n'apparaît pas dans le README.
+2. Le README décrit les clients Android/Windows comme « built on VpnService /
+   Wintun », alors que `docs/ROADMAP.md` les classe en « v0.1 — skeleton ». Le
+   mot *skeleton* n'apparaît pas dans le README.
 3. `docs/PROTOCOL.md` (1 027 o) et `docs/ROADMAP.md` (578 o) sont très courts :
-   corrects, mais sans exemple de trame ni de diagramme de séquence.
-4. Pas de capture d'écran de l'app Android ni de l'UI Windows (rien à montrer :
-   les clients sont des squelettes — donc cohérent).
+   corrects, mais sans exemple de trame ni diagramme de séquence.
+4. Pas de capture d'écran (rien à montrer : les clients sont des squelettes —
+   donc cohérent).
 
 ---
 
@@ -166,16 +166,21 @@ Ce qui **n'est pas** prouvé par ce test :
 
 Run `43568004035` — workflow **« Go core + E2E »**, commit `bf3b7f2` :
 
+**`"status": "completed", "conclusion": "success"`** — run entier vert (06:48:29Z).
+
 | Étape | Résultat |
 |---|---|
 | checkout / setup-go | ✅ success |
-| **Canonical gate — go vet** | ✅ **success** |
-| **Canonical gate — go test ./...** | ✅ **success** |
-| Build meshd (linux/amd64) | ⏳ en cours au moment du rapport |
-| Two-node end-to-end proof | ⏳ pending |
-| Upload E2E log / go test log | ⏳ pending |
+| Canonical gate — `go vet` | ✅ success |
+| Canonical gate — `go test ./...` | ✅ success |
+| Build meshd (linux/amd64) | ✅ success |
+| Two-node end-to-end proof | ✅ success |
+| Upload E2E log / go test log | ✅ success |
 
 Trois workflows existent : `go.yml`, `android.yml`, `windows.yml`.
+
+Le test e2e est donc **reproductible hors de ma machine** : il passe aussi sur
+le runner `ubuntu-latest` de GitHub.
 
 ---
 
@@ -187,12 +192,12 @@ Trois workflows existent : `go.yml`, `android.yml`, `windows.yml`.
 | `go vet` | ✅ propre |
 | `go build` | ✅ exit 0, binaire 37 Mo |
 | Tests unitaires | ✅ 4/4 PASS |
-| Test bout-en-bout 2 nœuds | ✅ 7/7 PASS |
-| CI `go vet` + `go test` | ✅ vertes |
+| Test bout-en-bout 2 nœuds (local) | ✅ 7/7 PASS |
+| CI GitHub Actions complète | ✅ **success** |
 
 **Le sens des priorités a été respecté : README d'abord (et vérifié avant de le
 déclarer corrigé), tests ensuite.** Le code compile et deux nœuds se connectent
-réellement.
+réellement, en local comme dans la CI.
 
 ### Prochaines priorités suggérées (dans cet ordre)
 
