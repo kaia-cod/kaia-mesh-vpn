@@ -1,0 +1,28 @@
+=== S6 FINAL VALIDATION 2026-11-14T06:53:25Z ===
+HEAD=f0613beb35db4cef22bb397d9cf03749bac767a9
+ORIGIN_MAIN=f0613beb35db4cef22bb397d9cf03749bac767a9
+WORKTREE_DIRTY=0
+README_LINES=339  README_BYTES=12880
+
+--- go vet ./... ---
+VET_RC=0
+
+--- go test ./... ---
+?   	github.com/kaia-cod/kaia-mesh-vpn/cmd/meshd	[no test files]
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/config	(cached)
+?   	github.com/kaia-cod/kaia-mesh-vpn/internal/node	[no test files]
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/peering	(cached)
+ok  	github.com/kaia-cod/kaia-mesh-vpn/internal/tunnel	(cached)
+TEST_RC=0
+
+--- go build -o /tmp/meshd_s6 ./cmd/meshd ---
+BUILD_RC=0
+/tmp/meshd_s6 37421096 bytes
+
+--- run meshd ---
+meshd ready: PeerID=12D3KooWSj3MyFJv3NvsoHQQNw6mNQoShAiqyFZy2c4pkBm6Pfun virtualIP=10.42.0.9
+listen: /ip4/127.0.0.1/tcp/37527/p2p/12D3KooWSj3MyFJv3NvsoHQQNw6mNQoShAiqyFZy2c4pkBm6Pfun
+listen: /ip4/172.16.0.5/tcp/37527/p2p/12D3KooWSj3MyFJv3NvsoHQQNw6mNQoShAiqyFZy2c4pkBm6Pfun
+announced on kaia-mesh/announce/1.0.0, socket=
+run window elapsed, shutting down
+RUN_RC=0
