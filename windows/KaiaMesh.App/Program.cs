@@ -30,7 +30,7 @@ namespace KaiaMesh.App
 
             _status = new Label
             {
-                Text = "Tunnel arrêté.",
+                Text = "Tunnel stopped.",
                 AutoSize = false,
                 Dock = DockStyle.Top,
                 Padding = new Padding(16),
@@ -39,7 +39,7 @@ namespace KaiaMesh.App
 
             _toggle = new Button
             {
-                Text = "Activer le tunnel",
+                Text = "Enable tunnel",
                 Dock = DockStyle.Bottom,
                 Height = 48,
                 Font = new Font("Segoe UI", 12f)
@@ -52,19 +52,19 @@ namespace KaiaMesh.App
                     if (_tunnel.IsRunning)
                     {
                         await _tunnel.StopAsync();
-                        _status.Text = "Tunnel arrêté.";
-                        _toggle.Text = "Activer le tunnel";
+                        _status.Text = "Tunnel stopped.";
+                        _toggle.Text = "Enable tunnel";
                     }
                     else
                     {
                         await _tunnel.StartAsync("10.42.0.1", "255.255.0.0");
-                        _status.Text = "Tunnel actif — mesh IPFS (10.42.0.0/16).";
-                        _toggle.Text = "Désactiver le tunnel";
+                        _status.Text = "Tunnel active — IPFS mesh (10.42.0.0/16).";
+                        _toggle.Text = "Disable tunnel";
                     }
                 }
                 catch (Exception ex)
                 {
-                    _status.Text = $"Erreur : {ex.Message}";
+                    _status.Text = $"Error: {ex.Message}";
                 }
                 finally
                 {

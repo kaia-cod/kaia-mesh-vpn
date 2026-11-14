@@ -1,17 +1,19 @@
-# Feuille de route
+# Roadmap
 
-## v0.1 — squelette (actuel)
-- Daemon Go/libp2p (annonces PubSub, tunnel)
-- Application Android (VpnService)
-- Application + service Windows (Wintun / .NET 8)
-- Tests unitaires du codec et de la table de routage
+## v0.1 — skeleton (current)
+- Go/libp2p daemon (PubSub announcements, tunnel)
+- Android app (VpnService)
+- Windows app + service (Wintun / .NET 8)
+- Unit tests for the codec and the routing table
 
 ## v0.2
-- Pont Unix socket meshd <-> apps (remplacer TCP local par socket nommé)
-- DH centralisé décentralisé : proposition VIP via DHT + conflit
-- Interface de liste des pairs (Android/Windows)
+- meshd ↔ app bridge over a Unix socket (replace the local TCP relay with a
+  named socket)
+- Decentralized address allocation: VIP proposal over the DHT plus conflict
+  resolution
+- Peer list UI (Android / Windows)
 
 ## v0.3
-- Audit de sécurité + fuzz du codec
-- Bench débit/latence inter-pairs
-- Relay circuits libp2p (fallback NAT strict)
+- Security audit and codec fuzzing
+- Inter-peer throughput and latency benchmarks
+- libp2p relay circuits (fallback for strict NAT)

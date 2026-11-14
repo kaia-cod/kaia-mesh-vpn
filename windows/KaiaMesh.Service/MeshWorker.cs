@@ -18,7 +18,7 @@ public sealed class MeshWorker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            _log.LogInformation("Démarrage de meshd…");
+            _log.LogInformation("Starting meshd…");
             _daemon = Process.Start(new ProcessStartInfo
             {
                 FileName = Path.Combine(AppContext.BaseDirectory, "meshd.exe"),
@@ -28,12 +28,12 @@ public sealed class MeshWorker : BackgroundService
             });
             if (_daemon == null)
             {
-                _log.LogError("meshd introuvable.");
+                _log.LogError("meshd not found.");
                 await Task.Delay(5000, stoppingToken);
                 continue;
             }
             await _daemon.WaitForExitAsync(stoppingToken);
-            _log.LogWarning("meshd s'est arrêté (code {_daemon.ExitCode}). Redémarrage dans 5 s.", _daemon.ExitCode);
+            _log.LogWarning("meshd exited (code {_daemon.ExitCode}). Restarting in 5s.", _daemon.ExitCode);
             await Task.Delay(5000, stoppingToken);
         }
     }

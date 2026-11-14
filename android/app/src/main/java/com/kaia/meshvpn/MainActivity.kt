@@ -17,11 +17,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         val text = TextView(this).apply {
-            this.text = "Kaia Mesh VPN\n\nVPN peer-to-peer basé sur IPFS.\nAucun serveur central : le tunnel est chiffré (Noise) et les pairs se découvrent via le DHT IPFS."
+            this.text = "Kaia Mesh VPN\n\nPeer-to-peer VPN built on IPFS.\nNo central server: the tunnel is encrypted (Noise) and peers discover each other over the IPFS DHT."
             textSize = 16f
             setPadding(48, 96, 48, 32)
         }
-        val button = Button(this).apply { this.text = "Activer le tunnel" }
+        val button = Button(this).apply { this.text = "Enable tunnel" }
         button.setOnClickListener { requestVpn() }
 
         val layout = android.widget.LinearLayout(this).apply {

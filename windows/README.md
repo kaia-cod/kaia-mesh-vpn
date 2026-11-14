@@ -1,17 +1,19 @@
 # Kaia Mesh VPN — Windows
 
-- **KaiaMesh.App** : interface C# (.NET 8, WinForms) — crée un adaptateur
-  Wintun `KaiaMesh`, configure `10.42.0.1/16` et relaie les paquets vers
-  `meshd` (TCP local 4242).
-- **KaiaMesh.Service** : service Windows qui lance et surveille `meshd.exe`.
+- **KaiaMesh.App** — C# desktop UI (.NET 8, WinForms). It creates a Wintun
+  adapter named `KaiaMesh`, configures `10.42.0.1/16`, and relays packets to
+  `meshd` over the local socket.
+- **KaiaMesh.Service** — Windows service that starts and supervises `meshd.exe`.
 
 ## Build
 
-1. Installer Visual Studio 2022 + .NET 8 SDK.
-2. Compiler `meshd` pour Windows (`GOOS=windows go build -o meshd.exe ./cmd/meshd`)
-   et le copier dans la sortie du service.
-3. Ouvrir `KaiaMesh.sln`, Release, x64.
-4. Installer le service : `sc create KaiaMesh binPath= ...\KaiaMesh.Service.exe start= auto`
+1. Install Visual Studio 2022 and the .NET 8 SDK.
+2. Cross-compile `meshd` for Windows
+   (`GOOS=windows go build -o meshd.exe ./cmd/meshd`) and copy it into the
+   service output directory.
+3. Open `KaiaMesh.sln`, select Release / x64, and build.
+4. Install the service:
+   `sc create KaiaMesh binPath= ...\KaiaMesh.Service.exe start= auto`
 
-L'exécution requiert les droits administrateur (manifest inclus) et le
-driver Wintun (inclus via le paquet NuGet `Wintun`).
+Running the app and the service requires administrator rights (the manifest is
+included) and the Wintun driver (pulled in through the `Wintun` NuGet package).
