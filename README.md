@@ -94,9 +94,10 @@ first activation.
 
 ### Windows
 
-See [`windows/README.md`](windows/README.md): build `meshd.exe`
-(`GOOS=windows go build -o meshd.exe ./cmd/meshd`), open `KaiaMesh.sln` in
-Visual Studio (Release, x64), and install the service with `sc create`.
+See [`windows/README.md`](windows/README.md): cross-compile `meshd.exe`, open
+`KaiaMesh.sln` in Visual Studio (Release), then run the GUI as administrator or
+install the `KaiaMesh` service with `sc.exe create`. Requires Windows 10 2004+
+and the .NET 8 SDK.
 
 ### Tests
 

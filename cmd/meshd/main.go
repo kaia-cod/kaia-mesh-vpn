@@ -51,6 +51,9 @@ func main() {
 	}
 	defer h.Close()
 	fmt.Printf("meshd ready: PeerID=%s virtualIP=%s\n", h.ID(), cfg.VirtualIP)
+	for _, a := range h.Addrs() {
+		fmt.Printf("listen: %s/p2p/%s\n", a, h.ID())
+	}
 
 	ps, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
