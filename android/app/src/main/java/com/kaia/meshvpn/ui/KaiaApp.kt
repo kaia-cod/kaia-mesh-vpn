@@ -363,7 +363,8 @@ private fun TrafficCard(stats: TrafficStats) {
                 stats.droppedNoRoute.toString(),
                 "sans route",
                 Modifier.weight(1f),
-                if (stats.droppedNoRoute > 0) Danger else scheme.onSurface,
+                // null = couleur par défaut du thème, résolue dans Metric().
+                if (stats.droppedNoRoute > 0) Danger else null,
             )
         }
     }
@@ -375,13 +376,16 @@ private fun Metric(
     value: String,
     sub: String,
     modifier: Modifier = Modifier,
-    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    // null = couleur par défaut : un @Composable ne peut PAS être lu dans un
+    // argument par défaut (erreur de compilation Compose), on résout ici.
+    valueColor: Color? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val resolvedColor = valueColor ?: scheme.onSurface
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
         Spacer(Modifier.height(4.dp))
-        Text(value, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = resolvedColor)
         Text(sub, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
     }
 }
