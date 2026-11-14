@@ -23,9 +23,6 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # NOTE: android-actions/setup-android@v3 failed at 7s on the previous
-      # run. ubuntu-latest already ships the Android SDK + build-tools, so the
-      # SDK is validated explicitly instead of re-installed.
       - name: Verify Android SDK is present on the runner
         run: |
           set -euo pipefail
@@ -56,15 +53,21 @@ jobs:
           file "$BIN" | grep -q 'ARM aarch64' || { echo "::error::not an aarch64 ELF"; exit 1; }
           echo "meshd_arm64_size=$SIZE" >> "$GITHUB_ENV"
 
-      - name: Set up Gradle (no wrapper in repo -> Gradle from setup action)
+      - name: Setup Gradle wrapper executable
+        run: chmod +x android/gradlew
+
+      - name: Set up Gradle cache from wrapper
         uses: gradle/actions/setup-gradle@v3
         with:
-          gradle-version: '8.7'
-          cache-disabled: true
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          # Do NOT specify gradle-version: use the wrapper committed at
+          # android/gradle/wrapper/gradle-wrapper.properties (8.7) to avoid
+          # cold resolution without lock. AGP 8.5.2 plugin resolves from
+          # google() first (settings.gradle pluginManagement order fixed).
 
       - name: Build debug APK
         working-directory: android
-        run: gradle --no-daemon :app:assembleDebug
+        run: ./gradlew --no-daemon :app:assembleDebug
 
       - name: Assert meshd is packaged inside the APK
         run: |
