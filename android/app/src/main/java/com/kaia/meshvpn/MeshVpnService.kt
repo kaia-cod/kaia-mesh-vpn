@@ -31,7 +31,7 @@ class MeshVpnService : VpnService() {
         private const val ACTION_START = "com.kaia.meshvpn.START"
         private const val ACTION_STOP = "com.kaia.meshvpn.STOP"
 
-        // --- Contrat de diffusion vers l'UI (MeshViewModel) ---
+        // --- Broadcast contract towards the UI (MeshViewModel) ---
         const val ACTION_STATE = "com.kaia.meshvpn.STATE"
         const val ACTION_PEERS = "com.kaia.meshvpn.PEERS"
         const val ACTION_STATS = "com.kaia.meshvpn.STATS"
@@ -54,13 +54,13 @@ class MeshVpnService : VpnService() {
         const val EXTRA_LOG = "log"
         const val EXTRA_LEVEL = "level"
 
-        /** Démarre le tunnel (le consentement VPN doit avoir été obtenu). */
+        /** Starts the tunnel (VPN consent must already be granted). */
         fun start(ctx: android.content.Context) {
             val i = Intent(ctx, MeshVpnService::class.java).setAction(ACTION_START)
             androidx.core.content.ContextCompat.startForegroundService(ctx, i)
         }
 
-        /** Arrête le tunnel et le démon. */
+        /** Stops the tunnel and the daemon. */
         fun stop(ctx: android.content.Context) {
             ctx.startService(Intent(ctx, MeshVpnService::class.java).setAction(ACTION_STOP))
         }
@@ -73,7 +73,7 @@ class MeshVpnService : VpnService() {
     private val DEFAULT_MTU = 1400
     private val LOCAL_TUN_PREFIX = 32
 
-    // Dernier état publié (sert au snapshot quand l'UI revient au premier plan)
+    // Last published state (used as a snapshot when the UI comes back to the foreground)
     @Volatile private var lastTunnel = "DISCONNECTED"
     @Volatile private var lastVip: String? = null
     @Volatile private var lastPid = 0
@@ -94,7 +94,7 @@ class MeshVpnService : VpnService() {
         stopSelf()
     }
 
-    /** Publie l'état courant vers l'UI (jamais de données inventées). */
+    /** Publishes the current state to the UI (never made-up data). */
     private fun publishState(tunnel: String, vip: String, pid: Int, alive: Boolean,
                              mtu: Int, route: String, error: String?) {
         val i = Intent(ACTION_STATE).setPackage(packageName)
@@ -108,7 +108,7 @@ class MeshVpnService : VpnService() {
         sendBroadcast(i)
     }
 
-    /** Journal réel (service/démon) affiché dans l'écran. */
+    /** Real log (service/daemon) shown on screen. */
     private fun publishLog(level: String, text: String) {
         Log.println(
             when (level) { "ERROR" -> Log.ERROR; "WARN" -> Log.WARN; else -> Log.INFO },
@@ -123,7 +123,7 @@ class MeshVpnService : VpnService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
-            publishLog("INFO", "Arrêt demandé par l'utilisateur")
+            publishLog("INFO", "Stop requested by the user")
             running = false
             stopVpn()
             return START_NOT_STICKY
@@ -162,7 +162,7 @@ class MeshVpnService : VpnService() {
         if (!running) {
             running = true
             remember("PREPARING", "", 0, 0, "", null)
-            publishLog("INFO", "Préparation du tunnel")
+            publishLog("INFO", "Preparing tunnel")
             Thread { runTunnelSafe() }.start()
         }
         return START_STICKY
@@ -215,44 +215,44 @@ class MeshVpnService : VpnService() {
             .setSession(getString(R.string.app_name))
             .setMtu(DEFAULT_MTU)
             .addAddress(LOCAL_TUN_ADDRESS, 32)
-            .addRoute("0.0.0.0", 0)          // tout le trafic passe par le maillage
+            .addRoute("0.0.0.0", 0)          // all traffic goes through the mesh
             .addRoute("::", 0)
-        // Split tunnel : le trafic du démon lui-même (DHT/libp2p) ne doit pas repasser dans le TUN.
+        // Split tunnel: the daemon's own traffic (DHT/libp2p) must not loop back into the TUN.
         builder.addDisallowedApplication(packageName)
         try {
             tun = builder.establish()
         } catch (e: Exception) {
             Log.e(TAG, "TUN establish failed", e)
-            remember("ERROR", "", 0, 0, "", "Établissement du TUN impossible : ${e.message}")
+            remember("ERROR", "", 0, 0, "", "TUN establishment failed: ${e.message}")
             publishLog("ERROR", "TUN establish failed: ${e.message}")
             return
         }
         if (tun == null) {
-            remember("ERROR", "", 0, 0, "", "Le système a refusé le TUN (consentement VPN révoqué ?)")
+            remember("ERROR", "", 0, 0, "", "The system refused the TUN (VPN consent revoked?)")
             publishLog("ERROR", "TUN establish returned null")
             return
         }
-        publishLog("OK", "TUN levé · VIP=$LOCAL_TUN_ADDRESS/$LOCAL_TUN_PREFIX · MTU=$DEFAULT_MTU · route 0.0.0.0/0")
+        publishLog("OK", "TUN up · VIP=$LOCAL_TUN_ADDRESS/$LOCAL_TUN_PREFIX · MTU=$DEFAULT_MTU · route 0.0.0.0/0")
 
         val input = FileInputStream(tun!!.fileDescriptor)
         val output = FileOutputStream(tun!!.fileDescriptor)
 
-        // --- Supervision du démon meshd (extrait depuis libmeshd.so) ---
+        // --- Supervision of the meshd daemon (extracted from libmeshd.so) ---
         val daemon = MeshDaemon(this)
         val started = daemon.ensureRunning()
         if (!started.ok) {
             remember("ERROR", LOCAL_TUN_ADDRESS, 0, DEFAULT_MTU, "0.0.0.0/0", started.error)
-            publishLog("ERROR", "meshd introuvable : ${started.error}")
-            // Le TUN reste levé mais l'écran DIT la vérité : erreur, aucun trafic.
+            publishLog("ERROR", started.error ?: MeshDaemon.ERR_BINARY_MISSING)
+            // The TUN stays up but the screen TELLS the truth: error, no traffic.
             while (running) {
                 try { Thread.sleep(1000) } catch (_: InterruptedException) { break }
                 if (input.available() > 0) { runCatching { input.read(ByteArray(1500)) } }
             }
             return
         }
-        publishLog("OK", "Démon meshd démarré · pid=${started.pid} · socket=${daemon.socketPath}")
+        publishLog("OK", "meshd daemon started · pid=${started.pid} · method=${started.method} · socket=${daemon.socketPath}")
 
-        // --- Connexion à la socket locale du démon ---
+        // --- Connection to the daemon's local socket ---
         var socket: LocalSocket? = null
         var connected = false
         repeat(10) { attempt ->
@@ -262,16 +262,16 @@ class MeshVpnService : VpnService() {
                 s.connect(LocalSocketAddress(daemon.socketPath, LocalSocketAddress.Namespace.FILESYSTEM))
                 socket = s
                 connected = true
-                publishLog("OK", "Socket locale meshd connectée (essai ${attempt + 1})")
+                publishLog("OK", "meshd local socket connected (attempt ${attempt + 1})")
             } catch (e: Exception) {
-                publishLog("WARN", "Connexion socket meshd : essai ${attempt + 1} échoué (${e.message})")
+                publishLog("WARN", "meshd socket connect failed: attempt ${attempt + 1} (${e.message})")
                 try { Thread.sleep(500) } catch (_: InterruptedException) {}
             }
         }
         if (!connected) {
             remember("ERROR", LOCAL_TUN_ADDRESS, started.pid, DEFAULT_MTU, "0.0.0.0/0",
-                "Démon lancé (pid=${started.pid}) mais socket injoignable : aucun datapath")
-            publishLog("ERROR", "Socket meshd injoignable après 10 essais")
+                "Daemon started (pid=${started.pid}) but socket unreachable: no datapath")
+            publishLog("ERROR", "meshd socket unreachable after 10 attempts")
             while (running) {
                 try { Thread.sleep(1000) } catch (_: InterruptedException) { break }
                 if (input.available() > 0) { runCatching { input.read(ByteArray(1500)) } }
@@ -279,13 +279,13 @@ class MeshVpnService : VpnService() {
             return
         }
         remember("CONNECTED", LOCAL_TUN_ADDRESS, started.pid, DEFAULT_MTU, "0.0.0.0/0", null)
-        publishLog("OK", "Tunnel actif · datapath bidirectionnel TUN <-> maillage")
+        publishLog("OK", "Tunnel active · bidirectional datapath TUN <-> mesh")
 
         val sockOut = socket!!.outputStream
         val sockIn = socket!!.inputStream
         val writeLock = Any()
-        // D4 FIX : @Volatile ne s'applique qu'aux propriétés, pas aux variables locales.
-        // La visibilité inter-threads est assurée ici par des atomiques (java.util.concurrent.atomic).
+        // D4 FIX: @Volatile only applies to properties, not to local variables.
+        // Cross-thread visibility is provided here by atomics (java.util.concurrent.atomic).
         val rxBytes = java.util.concurrent.atomic.AtomicLong(0L)
         val txBytes = java.util.concurrent.atomic.AtomicLong(0L)
         val rxPps = java.util.concurrent.atomic.AtomicLong(0L)
@@ -293,7 +293,7 @@ class MeshVpnService : VpnService() {
         val dropped = java.util.concurrent.atomic.AtomicLong(0L)
         val linkUp = java.util.concurrent.atomic.AtomicBoolean(true)
 
-        // --- Sens TUN -> maillage (thread dédié) ---
+        // --- Direction TUN -> mesh (dedicated thread) ---
         val upThread = Thread {
             val buf = ByteArray(65535)
             while (running && linkUp.get()) {
@@ -310,13 +310,13 @@ class MeshVpnService : VpnService() {
                 } catch (e: Exception) {
                     if (!running) break
                     dropped.incrementAndGet()
-                    publishLog("WARN", "Écriture maillage interrompue : ${e.message}")
+                    publishLog("WARN", "Mesh write interrupted: ${e.message}")
                     linkUp.set(false)
                 }
             }
         }.apply { name = "tun-to-mesh"; isDaemon = true; start() }
 
-        // --- Sens maillage -> TUN (thread principal de ce runTunnel) + heartbeat statistiques ---
+        // --- Direction mesh -> TUN (main thread of this runTunnel) + stats heartbeat ---
         var lastStatsAt = System.currentTimeMillis()
         var lastRx = 0L
         var lastTx = 0L
@@ -326,7 +326,7 @@ class MeshVpnService : VpnService() {
                 var read = 0
                 while (read < 4) {
                     val r = sockIn.read(h, read, 4 - read)
-                    if (r <= 0) throw java.io.IOException("socket fermée")
+                    if (r <= 0) throw java.io.IOException("socket closed")
                     read += r
                 }
                 val len = ((h[0].toInt() and 0xFF) shl 24) or ((h[1].toInt() and 0xFF) shl 16) or
@@ -336,7 +336,7 @@ class MeshVpnService : VpnService() {
                 var pr = 0
                 while (pr < len) {
                     val r = sockIn.read(pkt, pr, len - pr)
-                    if (r <= 0) throw java.io.IOException("socket fermée")
+                    if (r <= 0) throw java.io.IOException("socket closed")
                     pr += r
                 }
                 output.write(pkt)
@@ -345,7 +345,7 @@ class MeshVpnService : VpnService() {
             } catch (e: Exception) {
                 if (!running) break
                 dropped.incrementAndGet()
-                publishLog("WARN", "Lecture maillage interrompue : ${e.message}")
+                publishLog("WARN", "Mesh read interrupted: ${e.message}")
                 break
             }
             val now = System.currentTimeMillis()
@@ -365,9 +365,9 @@ class MeshVpnService : VpnService() {
                         .putExtra(EXTRA_DROPPED, dropped.get())
                 )
                 if (!daemon.isAlive()) {
-                    publishLog("ERROR", "Le démon meshd s'est arrêté (pid=${started.pid})")
+                    publishLog("ERROR", "meshd daemon exited (pid=${started.pid})")
                     remember("ERROR", LOCAL_TUN_ADDRESS, 0, DEFAULT_MTU, "0.0.0.0/0",
-                        "Démon meshd terminé : tunnel sans datapath")
+                        "meshd daemon terminated: tunnel without datapath")
                     break
                 }
             }
