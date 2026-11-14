@@ -39,25 +39,31 @@ Conventional VPNs funnel all of your traffic through a single company's servers:
 a central point of failure, a central point of trust, and a recurring bill.
 Kaia Mesh VPN takes the opposite approach.
 
-Your device announces itself to the mesh, discovers other nodes through the
-public IPFS DHT, and opens a **direct, encrypted tunnel** with the peer it wants
-to reach. If a node goes offline, the mesh simply routes around it. There is no
-operator to subscribe to and no traffic concentrator to compromise.
+Your device announces itself to the mesh, finds other nodes through PubSub
+gossip, mDNS on the local network, or explicit bootstrap addresses, and opens a
+**direct, encrypted peer link** with the node it wants to reach. If a node goes
+offline, the mesh simply routes around it. There is no operator to subscribe to
+and no traffic concentrator to compromise.
 
 Typical uses: linking a handful of self-hosted machines, reaching a home lab
 from a laptop, giving an Android device a stable private address on a mesh you
 control.
+
+> **Scope of v0.1.** `meshd` establishes, announces and *verifies* encrypted
+> libp2p links between nodes, and ships the packet codec and routing table that
+> the data path will use. IP traffic forwarding between TUN interfaces is not
+> wired in yet — see [Status and limitations](#status-and-limitations).
 
 ---
 
 ## Features
 
 - **Decentralized discovery** — peer announcements over PubSub gossip
-  (`kaia-mesh/announce/1.0.0`), the Kademlia DHT, and mDNS on the local network.
+  (`kaia-mesh/announce/1.0.0`) and mDNS on the local network.
 - **End-to-end encryption** — Noise protocol (`/noise`) with TLS 1.2 fallback;
   Ed25519 node identities exposed as libp2p PeerIDs.
-- **Direct tunnels** — IP packets encapsulated as `[4-byte BE length][IP packet]`
-  and routed by virtual IP over `10.42.0.0/16` (MTU 1400).
+- **Direct, verified peer links** — explicit dialing with live connection-table
+  read-back, so a link is only reported once it genuinely exists.
 - **NAT traversal** — libp2p hole punching, connection manager, TCP and QUIC
   transports.
 - **Multi-platform clients**
@@ -68,8 +74,8 @@ control.
 - **Scriptable and testable** — deterministic flags (`-connect`, `-for`,
   `-identity`) and machine-readable output lines make real connectivity
   assertions possible in CI.
-- **Small core** — a single Go daemon (`meshd`), a few hundred lines of
-  first-party code, with unit tests for the packet codec and the routing table.
+- **Small core** — a single Go daemon (`meshd`) with unit tests for the packet
+  codec, the routing table and configuration parsing.
 
 ---
 
@@ -89,11 +95,11 @@ control.
 
 | Component | Location | Responsibility |
 | --- | --- | --- |
-| `meshd` daemon | `cmd/meshd/` | Runs the libp2p host, announces the node, dials peers, reports connectivity |
-| Config | `internal/config/` | Virtual IP parsing, Ed25519 identity seeds, defaults (MTU 1400) |
-| Node | `internal/node/` | libp2p host: Noise security, NAT service, hole punching, mDNS |
+| `meshd` daemon | `cmd/meshd/` | Runs the libp2p host, announces the node on PubSub, dials peers, reports connectivity |
+| Config | `internal/config/` | Virtual IP parsing/encoding, Ed25519 identity seeds, defaults (MTU 1400), validation |
+| Node | `internal/node/` | libp2p host: Noise + TLS security, NAT service, hole punching, connection manager, mDNS, bootstrap dialing |
 | Peering | `internal/peering/` | Thread-safe virtual-IP → PeerID routing table |
-| Tunnel | `internal/tunnel/` | Length-prefixed IP packet codec and destination-VIP extraction |
+| Tunnel | `internal/tunnel/` | Length-prefixed IP packet codec and destination-VIP extraction (library, ready to wire) |
 | Android client | `android/` | `VpnService` bridge between the TUN interface and `meshd` |
 | Windows client | `windows/` | WinForms UI and Windows service bridging Wintun to `meshd` |
 | E2E harness | `scripts/e2e_test.sh` | Boots two nodes and asserts a live connection |
@@ -258,15 +264,17 @@ Unit tests cover:
 
 ## Protocol summary
 
-| Item | Value |
-| --- | --- |
-| Announce topic | `kaia-mesh/announce/1.0.0` |
-| Tunnel protocol | `/kaia-mesh/1.0.0` |
-| Peer protocol | `/kaia-mesh/peer/1.0.0` |
-| Security | `/noise`, `/tls/1.2.0` |
-| Virtual network | `10.42.0.0/16`, MTU 1400 |
-| Identity | Ed25519 seed → libp2p PeerID |
-| Framing | `[4-byte big-endian length][IP packet]` |
+| Item | Value | Implemented in v0.1 |
+| --- | --- | --- |
+| Announce topic | `kaia-mesh/announce/1.0.0` | Yes (published at startup) |
+| Tunnel protocol | `/kaia-mesh/1.0.0` | Codec yes, stream handler no |
+| Peer protocol | `/kaia-mesh/peer/1.0.0` | Reserved |
+| Security | `/noise`, `/tls/1.2.0` | Yes |
+| Virtual network | `10.42.0.0/16`, MTU 1400 | Addresses assigned, no forwarding |
+| Identity | Ed25519 seed → libp2p PeerID | Yes (`-identity`) |
+| Framing | `[4-byte big-endian length][IP packet]` | Yes (`internal/tunnel`) |
+
+Details: [`docs/PROTOCOL.md`](docs/PROTOCOL.md).
 
 ---
 
@@ -288,17 +296,28 @@ scripts/            e2e_test.sh
 
 ## Status and limitations
 
-**v0.1 — functional skeleton.** The encrypted core, peer discovery, routing
-table, both client applications and an automated two-node end-to-end test are in
-place, and the Go test suite passes.
+**v0.1 — functional skeleton.** What works today, and is covered by the
+automated two-node end-to-end test (`scripts/e2e_test.sh`):
 
-Known limitations:
+- libp2p host with permanent Ed25519 identities, Noise (+ TLS fallback) security,
+  TCP/QUIC transports, connection manager, NAT service and hole punching;
+- PubSub announcement on `kaia-mesh/announce/1.0.0` at startup;
+- explicit peer dialing with verified, machine-readable connectivity output
+  (`CONNECTED`, `PEERS count=N`, `LINK`);
+- mDNS peer discovery on the local network;
+- unit-tested packet codec, routing table and configuration.
 
-- Virtual IP allocation is **manual** (one `-vip` per host); decentralized
-  allocation is planned for v0.2.
-- `-socket` is accepted and echoed at startup, but the socket bridge between
-  the Android/Windows clients and `meshd` is **not implemented yet**; the clients
-  currently bridge through a documented local relay.
+Known limitations — the README states them so nobody is misled:
+
+- **No IP forwarding yet.** `internal/tunnel` (packet codec) and
+  `internal/peering` (VIP → PeerID table) are complete and unit-tested, but the
+  daemon does not yet move packets between them: `meshd` establishes and verifies
+  encrypted peer links, it does not carry IP traffic end-to-end at this stage.
+- **No Kademlia DHT discovery yet.** Discovery relies on PubSub, mDNS and
+  explicit `-bootstrap` / `-connect` multiaddrs.
+- Virtual IP allocation is **manual** (one `-vip` per host).
+- `-socket` is accepted and echoed at startup, but the socket bridge between the
+  Android/Windows clients and `meshd` is **not implemented yet**.
 - No peer-list UI, no libp2p relay fallback for strict NAT, no security audit and
   no throughput benchmarks yet.
 
