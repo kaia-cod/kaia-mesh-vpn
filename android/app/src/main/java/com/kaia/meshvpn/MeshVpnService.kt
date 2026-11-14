@@ -44,13 +44,13 @@ class MeshVpnService : VpnService() {
         val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, channelId)
                 .setContentTitle("Kaia Mesh VPN actif")
-                .setContentText("Tunnel peer-to-peer IPFS en cours")
+                .setContentText("Tunnel running — peer-to-peer over IPFS")
                 .build()
         } else {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
                 .setContentTitle("Kaia Mesh VPN actif")
-                .setContentText("Tunnel peer-to-peer IPFS en cours")
+                .setContentText("Tunnel running — peer-to-peer over IPFS")
                 .build()
         }
         startForeground(1, notification)
