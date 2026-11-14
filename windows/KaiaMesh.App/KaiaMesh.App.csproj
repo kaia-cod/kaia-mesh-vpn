@@ -10,6 +10,8 @@
     <RootNamespace>KaiaMesh.App</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Wintun" Version="0.1.0" />
+    <!-- Wintun is a native kernel driver + DLL, NOT a managed NuGet package:
+         the previous reference "Wintun" 0.1.0 does not exist on nuget.org and
+         broke dotnet restore. Removed (debt D-WIN-001, see docs/ETAT.md). -->
   </ItemGroup>
 </Project>

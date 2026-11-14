@@ -23,8 +23,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      # NOTE: android-actions/setup-android@v3 failed at 7s on the previous
+      # run. ubuntu-latest already ships the Android SDK + build-tools, so the
+      # SDK is validated explicitly instead of re-installed.
+      - name: Verify Android SDK is present on the runner
+        run: |
+          set -euo pipefail
+          echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<unset>}"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK" || { echo "::error::no Android SDK env var"; exit 1; }
+          test -d "$SDK" || { echo "::error::SDK dir missing: $SDK"; exit 1; }
+          ls "$SDK" | head -20
 
       - name: Cross-compile meshd for arm64-v8a (CGO disabled, pure Go)
         run: |
@@ -46,8 +56,11 @@ jobs:
           file "$BIN" | grep -q 'ARM aarch64' || { echo "::error::not an aarch64 ELF"; exit 1; }
           echo "meshd_arm64_size=$SIZE" >> "$GITHUB_ENV"
 
-      - name: Set up Gradle
+      - name: Set up Gradle (no wrapper in repo -> Gradle from setup action)
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.7'
+          cache-disabled: true
 
       - name: Build debug APK
         working-directory: android

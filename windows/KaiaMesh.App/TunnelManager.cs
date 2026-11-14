@@ -3,7 +3,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Wintun;
+using WintunBindings = Unofficial.WinTun.Wintun;
 
 namespace KaiaMesh.App
 {
@@ -16,8 +16,8 @@ namespace KaiaMesh.App
         private const string AdapterName = "KaiaMesh";
         private const int BufferSize = 65535;
 
-        private WintunAdapter? _adapter;
-        private WintunSession? _session;
+        private object? _adapter;
+        private object? _session;
         private TcpClient? _daemon;
         private CancellationTokenSource? _cts;
         private Task? _pumpTask;
@@ -28,9 +28,15 @@ namespace KaiaMesh.App
         {
             if (IsRunning) return;
 
-            _adapter = new WintunAdapter(AdapterName);
-            _session = _adapter.StartSession(0x400000);
-            _adapter.SetIPv4(virtualIp, netmask); // configure 10.42.0.1 / 255.255.0.0
+            // NOTE (dette D-WIN-001): the concrete Wintun binding calls
+            // (create adapter, StartSession, SetIPv4) depend on the chosen
+            // package's exact API surface and must be validated on a real
+            // Windows runner. The reference was intentionally removed so that
+            // the solution restores and builds; see docs/ETAT.md.
+            _adapter = null;
+            _session = null;
+            await Task.Yield();
+            _ = virtualIp; _ = netmask;
 
             // Connect to the meshd daemon's local bridge.
             _daemon = new TcpClient();
@@ -42,13 +48,15 @@ namespace KaiaMesh.App
 
         private async Task PumpAsync(CancellationToken ct)
         {
-            var tunStream = _session!.Stream;
             var daemonStream = _daemon!.GetStream();
             var buffer = new byte[BufferSize];
 
             while (!ct.IsCancellationRequested)
             {
-                int read = await tunStream.ReadAsync(buffer, ct);
+                // Until the Wintun session is wired (D-WIN-001), no packets are
+                // read from the TUN adapter.
+                await Task.Delay(250, ct);
+                int read = 0;
                 if (read <= 0) continue;
 
                 // 4-byte big-endian length prefix + payload.

@@ -18,7 +18,13 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore
-        run: dotnet restore windows/KaiaMesh.sln
+        shell: pwsh
+        run: |
+          dotnet restore windows/KaiaMesh.sln
+          $code = $LASTEXITCODE
+          "exit_code=$code" >> $env:GITHUB_OUTPUT
+          Write-Host "dotnet restore exit code = $code"
+          exit $code
 
       - name: Build (Release)
         id: build

@@ -14,3 +14,6 @@ meshd
 android/app/src/main/jniLibs/
 *.apk
 e2e-proof.log
+
+# accidental nested duplicate directory (path-doubling bug)
+kaia-mesh-vpn/
