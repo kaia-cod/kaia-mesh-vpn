@@ -66,11 +66,11 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Écran principal du VPN maillé.
+ * Main screen of the mesh VPN.
  *
- * RÈGLE : tout ce qui est affiché provient du [MeshModel] alimenté par le
- * service. Quand une donnée n'existe pas (aucun pair, aucun octet échangé),
- * l'écran l'écrit explicitement au lieu d'inventer des serveurs ou des pays.
+ * RULE: everything displayed comes from the [MeshModel] fed by the
+ * service. When a datum does not exist (no peer, no byte exchanged),
+ * the screen states it explicitly instead of inventing servers or countries.
  */
 @Composable
 fun KaiaApp(
@@ -91,7 +91,7 @@ fun KaiaApp(
             item { TunnelCard(model = model, onConnect = onConnect, onDisconnect = onDisconnect) }
             item { AddressCard(model) }
             item { TrafficCard(model.stats) }
-            item { SectionTitle("Mesh nodes", "${model.peers.size}") }
+            item { SectionTitle("Mesh peers", "${model.peers.size}") }
             if (model.peers.isEmpty()) {
                 item { EmptyPeersCard(tunnelUp = model.tunnel.isUp) }
             } else {
@@ -219,7 +219,7 @@ private fun TunnelCard(model: MeshModel, onConnect: () -> Unit, onDisconnect: ()
             Text(
                 when (model.tunnel) {
                     TunnelState.DISCONNECTED -> "The tunnel is down"
-                    TunnelState.PREPARING -> "Autorisation VPN…"
+                    TunnelState.PREPARING -> "VPN permission…"
                     TunnelState.CONNECTING -> "TUN is up, contacting the daemon…"
                     TunnelState.CONNECTED -> "The tunnel is active"
                     TunnelState.ERROR -> "The tunnel could not start"
@@ -231,7 +231,7 @@ private fun TunnelCard(model: MeshModel, onConnect: () -> Unit, onDisconnect: ()
             Text(
                 when (model.tunnel) {
                     TunnelState.DISCONNECTED ->
-                        "No traffic goes through the mesh. Your apps keep using the device's normal connection."
+                        "No traffic is going through the mesh. Your apps are using the device's normal connection."
                     TunnelState.PREPARING ->
                         "Android is asking for your permission to create a local VPN interface."
                     TunnelState.CONNECTING ->
@@ -256,7 +256,7 @@ private fun TunnelCard(model: MeshModel, onConnect: () -> Unit, onDisconnect: ()
                     ),
                 ) {
                     Text(
-                        if (model.tunnel == TunnelState.ERROR) "Retry" else "Connect the tunnel",
+                        if (model.tunnel == TunnelState.ERROR) "Try again" else "Connect tunnel",
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
                     )
@@ -306,7 +306,7 @@ private fun AddressCard(model: MeshModel) {
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
-                "ADRESSE VIRTUELLE",
+                "VIRTUAL ADDRESS",
                 style = MaterialTheme.typography.labelSmall,
                 color = scheme.onSurfaceVariant,
             )
@@ -321,8 +321,8 @@ private fun AddressCard(model: MeshModel) {
             HorizontalDivider(color = scheme.outline)
             Spacer(Modifier.height(12.dp))
             InfoRow("meshd daemon", if (model.daemonPid > 0) "pid ${model.daemonPid} · alive" else "not running")
-            InfoRow("MTU", if (model.mtu > 0) "${model.mtu} octets" else "—")
-            InfoRow("Route VPN", model.route.ifBlank { "—" })
+            InfoRow("MTU", if (model.mtu > 0) "${model.mtu} bytes" else "—")
+            InfoRow("VPN route", model.route.ifBlank { "—" })
         }
     }
 }
@@ -359,11 +359,11 @@ private fun TrafficCard(stats: TrafficStats) {
             Metric("RECEIVED", formatBytes(stats.rxBytes), "${stats.rxPps} pkt/s", Modifier.weight(1f))
             Metric("SENT", formatBytes(stats.txBytes), "${stats.txPps} pkt/s", Modifier.weight(1f))
             Metric(
-                "PERDUS",
+                "DROPPED",
                 stats.droppedNoRoute.toString(),
-                "sans route",
+                "no route",
                 Modifier.weight(1f),
-                // null = couleur par défaut du thème, résolue dans Metric().
+                // null = default theme colour, resolved in Metric().
                 if (stats.droppedNoRoute > 0) Danger else null,
             )
         }
@@ -376,8 +376,8 @@ private fun Metric(
     value: String,
     sub: String,
     modifier: Modifier = Modifier,
-    // null = couleur par défaut : un @Composable ne peut PAS être lu dans un
-    // argument par défaut (erreur de compilation Compose), on résout ici.
+    // null = default colour: a @Composable can NOT be read in a
+    // default argument (Compose compilation error), so we resolve it here.
     valueColor: Color? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -427,7 +427,7 @@ private fun EmptyPeersCard(tunnelUp: Boolean) {
             ) { Text("◌", fontSize = 22.sp, color = scheme.onSurfaceVariant) }
             Spacer(Modifier.height(12.dp))
             Text(
-                "No peer node",
+                "No mesh peers",
                 style = MaterialTheme.typography.titleMedium,
                 color = scheme.onSurface,
                 textAlign = TextAlign.Center,
@@ -435,13 +435,13 @@ private fun EmptyPeersCard(tunnelUp: Boolean) {
             Spacer(Modifier.height(8.dp))
             Text(
                 if (tunnelUp)
-                    "The tunnel is up but no other node of your mesh is reachable yet. " +
+                    "The tunnel is up but no other node of your mesh is reachable right now. " +
                         "This VPN is not a commercial service: there is no per-country exit server. " +
-                        "The app only connects to the nodes you deployed that announce " +
+                        "The app only connects to the nodes you deployed and that announce " +
                         "their virtual address on the IPFS DHT."
                 else
-                    "The node list fills up as soon as the tunnel is connected and other mesh " +
-                        "nodes announce themselves. No country and no server is simulated here.",
+                    "The peer list fills up as soon as the tunnel is connected and other nodes of the " +
+                        "mesh announce themselves. No country and no server is simulated here.",
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -469,7 +469,7 @@ private fun PeerRow(peer: MeshPeer) {
                 Text(peer.virtualIp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace,
                     fontSize = 14.sp, color = scheme.onSurface)
                 Text(
-                    "${peer.shortId} · ${if (peer.direction == "inbound") "entrant" else if (peer.direction == "outbound") "sortant" else "sens inconnu"}",
+                    "${peer.shortId} · ${if (peer.direction == "inbound") "inbound" else if (peer.direction == "outbound") "outbound" else "unknown direction"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.onSurfaceVariant,
                 )
@@ -527,7 +527,7 @@ private fun LogPanel(logs: List<LogLine>) {
 @Composable
 private fun HonestyFooter() {
     Text(
-        "This mesh does not route through any commercial server: the listed peers are the nodes you " +
+        "This mesh does not route to any commercial server: the peers listed are the nodes you " +
             "operate. No displayed data is simulated.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
@@ -539,7 +539,7 @@ private fun HonestyFooter() {
 /* ------------------------------------------------------------------ helpers */
 
 private fun formatBytes(v: Long): String = when {
-    v < 1024 -> "$v B"
+    v < 1024 -> "$v o"
     v < 1024 * 1024 -> String.format(Locale.US, "%.1f KB", v / 1024.0)
     v < 1024L * 1024 * 1024 -> String.format(Locale.US, "%.1f MB", v / (1024.0 * 1024))
     else -> String.format(Locale.US, "%.1f GB", v / (1024.0 * 1024 * 1024))
@@ -551,7 +551,7 @@ private fun ago(ms: Long): String {
     val d = (System.currentTimeMillis() - ms) / 1000
     return when {
         d < 60 -> "just now"
-        d < 3600 -> "il y a ${d / 60} min"
-        else -> "il y a ${d / 3600} h"
+        d < 3600 -> "${d / 60} min ago"
+        else -> "${d / 3600} h ago"
     }
 }

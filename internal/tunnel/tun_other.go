@@ -14,5 +14,5 @@ func OpenTUN(name string) (*TUN, error) {
 
 func (t *TUN) Name() string                        { return t.name }
 func (t *TUN) ReadPacket(pkt []byte) (int, error)  { return 0, errors.New("tun: unsupported") }
-func (t *TUN) WritePacket(pkt []byte) (int, error) { return 0, errors.New("tun: unsupported") }
+func (t *TUN) WritePacket(pkt []byte) error       { return errors.New("tun: unsupported") }
 func (t *TUN) Close() error                        { return nil }

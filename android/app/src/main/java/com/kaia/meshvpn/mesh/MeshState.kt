@@ -4,15 +4,15 @@ package com.kaia.meshvpn.mesh
  * Single source of truth for the UI.
  *
  * HONESTY RULE: no field of this model is fabricated on the UI side.
- * Everything comes either from the service (tunnel state) or from the meshd
- * daemon (JSON events read on the local socket). If a value is missing it
- * stays at zero / empty and the screen SAYS so explicitly.
+ * Everything comes either from the service (tunnel state) or from the meshd daemon
+ * (JSON events read on the local socket). If a datum is missing,
+ * it stays zero / an empty list and the screen states it explicitly.
  */
 
 /** TUN tunnel state (reported by MeshVpnService). */
 enum class TunnelState {
     DISCONNECTED,
-    PREPARING,     // VPN consent requested / service starting
+    PREPARING,     // VPN permission requested / service starting
     CONNECTING,    // TUN up, waiting for the meshd daemon
     CONNECTED,     // TUN up + daemon reachable + datapath active
     ERROR,         // failure (cause in [MeshModel.error])
@@ -56,7 +56,7 @@ data class MeshModel(
     val logs: List<LogLine> = emptyList(),
     val error: String? = null,
 ) {
-    /** Short form of a peer id (compact display). */
+    /** Short version of a peer id (compact display). */
     companion object {
         fun shortPeerId(id: String): String =
             if (id.length <= 14) id else id.substring(0, 8) + "…" + id.takeLast(4)

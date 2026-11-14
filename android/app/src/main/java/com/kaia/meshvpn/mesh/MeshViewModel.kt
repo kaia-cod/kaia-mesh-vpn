@@ -17,10 +17,10 @@ import kotlinx.coroutines.launch
 /**
  * ViewModel of the single screen.
  *
- * It computes NO business data: it aggregates what the service publishes
- * (MESH_STATE / MESH_PEERS / MESH_STATS / MESH_LOG) and turns it into
+ * It computes NO business datum: it aggregates what the service publishes
+ * (MESH_STATE / MESH_PEERS / MESH_STATS / MESH_LOG) et le convertit en
  * [MeshModel]. The peer list stays empty as long as the daemon announces
- * nobody — and the UI then shows "No peer node" with its explanation.
+ * nobody — the UI then shows "No mesh peers" together with its explanation.
  */
 class MeshViewModel : ViewModel() {
 
@@ -60,10 +60,10 @@ class MeshViewModel : ViewModel() {
                         },
                         when (tunnel) {
                             TunnelState.CONNECTED -> "Tunnel connected · meshd pid=$pid · VIP=$vip"
-                            TunnelState.CONNECTING -> "TUN up (VIP=$vip) · waiting for meshd daemon"
-                            TunnelState.PREPARING -> "Preparing: VPN authorization / service start"
+                            TunnelState.CONNECTING -> "TUN up (VIP=$vip) · waiting for the meshd daemon"
+                            TunnelState.PREPARING -> "Preparing: VPN permission / service startup"
                             TunnelState.DISCONNECTED -> "Tunnel stopped"
-                            TunnelState.ERROR -> "Tunnel failed: ${err ?: "unknown cause"}"
+                            TunnelState.ERROR -> "Tunnel failed: ${err ?: "cause inconnue"}"
                         }
                     )
                 }
@@ -85,7 +85,7 @@ class MeshViewModel : ViewModel() {
                     val previous = _state.value.peers
                     _state.update { it.copy(peers = peers) }
                     if (peers.size != previous.size) {
-                        appendLog("INFO", "Maillage : ${peers.size} pair(s) connu(s)")
+                        appendLog("INFO", "Mesh: ${peers.size} known peer(s)")
                     }
                 }
 
@@ -132,7 +132,7 @@ class MeshViewModel : ViewModel() {
         receiver = null
     }
 
-    /** Updates the model with a locally produced event (start requested, ...). */
+    /** Updates the model with a locally produced event (start requested...). */
     fun noteLocal(level: String, text: String) = appendLog(level, text)
 
     fun setTunnel(state: TunnelState, error: String? = null) {

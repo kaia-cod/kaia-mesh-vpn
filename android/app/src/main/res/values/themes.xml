@@ -2,8 +2,8 @@
 <resources>
     <!--
       Activity shell theme (window + status bar).
-      The actual content is rendered by Jetpack Compose (KaiaMeshTheme),
-      so this style only needs to inherit AppCompat / NoActionBar.
+      The real content is rendered by Jetpack Compose (KaiaMeshTheme):
+      this style therefore only needs to inherit from AppCompat / NoActionBar.
     -->
     <style name="Theme.MeshVPN" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>

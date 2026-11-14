@@ -30,13 +30,13 @@ import com.kaia.meshvpn.ui.theme.KaiaMeshTheme
 /**
  * Main screen — Jetpack Compose.
  *
- * Everything shown (tunnel state, virtual address, peers, counters, log) comes
- * EXCLUSIVELY from [MeshViewModel], fed by the real broadcasts of
- * MeshVpnService and of the meshd daemon.
+ * The screen content (tunnel state, virtual address, peers, counters,
+ * log) comes EXCLUSIVELY from [MeshViewModel], fed by the real broadcasts
+ * of MeshVpnService and of the meshd daemon.
  *
- * Cold-start safety: no heavy initialisation in onCreate; the Compose content
- * is wrapped in a try/catch with a plain-text fallback so that launch never
- * crashes immediately.
+ * Cold-start safety: no heavy initialisation inside
+ * onCreate; the Compose content is wrapped in a try/catch with a text fallback
+ * so that a launch never crashes immediately.
  */
 class MainActivity : ComponentActivity() {
 
@@ -55,8 +55,8 @@ class MainActivity : ComponentActivity() {
             vm.setTunnel(TunnelState.PREPARING)
             MeshVpnService.start(this)
         } else {
-            vm.setTunnel(TunnelState.DISCONNECTED, "VPN authorization denied")
-            vm.noteLocal("WARN", "VPN authorization denied by the user")
+            vm.setTunnel(TunnelState.DISCONNECTED, "VPN permission denied")
+            vm.noteLocal("WARN", "VPN permission denied by the user")
         }
     }
 
@@ -82,9 +82,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            Log.i(TAG, "Compose UI rendered")
+            Log.i(TAG, "Compose UI displayed")
         } catch (e: Exception) {
-            Log.e(TAG, "Compose init failed, text fallback", e)
+            Log.e(TAG, "Compose init failed, falling back to text", e)
             setContent {
                 KaiaMeshTheme {
                     Surface(modifier = Modifier.fillMaxSize()) {
@@ -110,13 +110,13 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** Requests the VPN consent, then starts the service. */
+    /** Requests the VPN permission, then starts the service. */
     private fun connectTunnel() {
         try {
             vm.setTunnel(TunnelState.PREPARING)
             val consent = VpnService.prepare(this)
             if (consent != null) {
-                vm.noteLocal("INFO", "VPN authorization requested by Android")
+                vm.noteLocal("INFO", "VPN permission requested by Android")
                 vpnPermission.launch(consent)
             } else {
                 vm.noteLocal("INFO", "VPN consent already granted · starting")
@@ -124,13 +124,13 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "connectTunnel failed", e)
-            vm.setTunnel(TunnelState.ERROR, "Start failed: ${e.message}")
+            vm.setTunnel(TunnelState.ERROR, "Could not start the tunnel: ${e.message}")
         }
     }
 
     private fun disconnectTunnel() {
         runCatching { MeshVpnService.stop(this) }
-            .onFailure { vm.setTunnel(TunnelState.ERROR, "Stop failed: ${it.message}") }
+            .onFailure { vm.setTunnel(TunnelState.ERROR, "Could not stop the tunnel: ${it.message}") }
         vm.noteLocal("INFO", "Disconnect requested")
     }
 
@@ -144,7 +144,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    @Deprecated("Kept for compatibility with < AndroidX 1.9")
+    @Deprecated("Kept for compat < AndroidX 1.9")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         try {
             @Suppress("DEPRECATION")

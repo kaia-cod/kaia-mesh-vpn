@@ -179,7 +179,7 @@ func (d *DataPath) handleStream(s network.Stream) {
 			}
 			return
 		}
-		if _, err := d.tun.WritePacket(pkt); err != nil {
+		if err := d.tun.WritePacket(pkt); err != nil {
 			log.Printf("tunnel: tun write: %v", err)
 			return
 		}
