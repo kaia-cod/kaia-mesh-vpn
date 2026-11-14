@@ -78,8 +78,8 @@ namespace KaiaMesh.App
                 try { await _pumpTask; } catch { /* shutting down */ }
             }
             _daemon?.Dispose();
-            _session?.Dispose();
-            _adapter?.Dispose();
+            if (_session is IDisposable s) s.Dispose();
+            if (_adapter is IDisposable a) a.Dispose();
             _daemon = null;
             _session = null;
             _adapter = null;
@@ -89,8 +89,8 @@ namespace KaiaMesh.App
         {
             _cts?.Cancel();
             _daemon?.Dispose();
-            _session?.Dispose();
-            _adapter?.Dispose();
+            if (_session is IDisposable ds) ds.Dispose();
+            if (_adapter is IDisposable da) da.Dispose();
         }
     }
 }
