@@ -284,17 +284,19 @@ class MeshVpnService : VpnService() {
         val sockOut = socket!!.outputStream
         val sockIn = socket!!.inputStream
         val writeLock = Any()
-        @Volatile var rxBytes = 0L
-        @Volatile var txBytes = 0L
-        @Volatile var rxPps = 0L
-        @Volatile var txPps = 0L
-        @Volatile var dropped = 0L
-        @Volatile var linkUp = true
+        // D4 FIX : @Volatile ne s'applique qu'aux propriétés, pas aux variables locales.
+        // La visibilité inter-threads est assurée ici par des atomiques (java.util.concurrent.atomic).
+        val rxBytes = java.util.concurrent.atomic.AtomicLong(0L)
+        val txBytes = java.util.concurrent.atomic.AtomicLong(0L)
+        val rxPps = java.util.concurrent.atomic.AtomicLong(0L)
+        val txPps = java.util.concurrent.atomic.AtomicLong(0L)
+        val dropped = java.util.concurrent.atomic.AtomicLong(0L)
+        val linkUp = java.util.concurrent.atomic.AtomicBoolean(true)
 
         // --- Sens TUN -> maillage (thread dédié) ---
         val upThread = Thread {
             val buf = ByteArray(65535)
-            while (running && linkUp) {
+            while (running && linkUp.get()) {
                 try {
                     val n = input.read(buf, 0, buf.size)
                     if (n <= 0) continue
@@ -304,12 +306,12 @@ class MeshVpnService : VpnService() {
                         sockOut.write(buf, 0, n)
                         sockOut.flush()
                     }
-                    txBytes += n
+                    txBytes.addAndGet(n.toLong())
                 } catch (e: Exception) {
                     if (!running) break
-                    dropped++
+                    dropped.incrementAndGet()
                     publishLog("WARN", "Écriture maillage interrompue : ${e.message}")
-                    linkUp = false
+                    linkUp.set(false)
                 }
             }
         }.apply { name = "tun-to-mesh"; isDaemon = true; start() }
@@ -329,7 +331,7 @@ class MeshVpnService : VpnService() {
                 }
                 val len = ((h[0].toInt() and 0xFF) shl 24) or ((h[1].toInt() and 0xFF) shl 16) or
                         ((h[2].toInt() and 0xFF) shl 8) or (h[3].toInt() and 0xFF)
-                if (len !in 1..65535) { dropped++; continue }
+                if (len !in 1..65535) { dropped.incrementAndGet(); continue }
                 val pkt = ByteArray(len)
                 var pr = 0
                 while (pr < len) {
@@ -339,26 +341,28 @@ class MeshVpnService : VpnService() {
                 }
                 output.write(pkt)
                 output.flush()
-                rxBytes += len
+                rxBytes.addAndGet(len.toLong())
             } catch (e: Exception) {
                 if (!running) break
-                dropped++
+                dropped.incrementAndGet()
                 publishLog("WARN", "Lecture maillage interrompue : ${e.message}")
                 break
             }
             val now = System.currentTimeMillis()
             if (now - lastStatsAt >= 1000) {
                 val dt = ((now - lastStatsAt).coerceAtLeast(1)) / 1000.0
-                rxPps = ((rxBytes - lastRx) / dt).toLong()
-                txPps = ((txBytes - lastTx) / dt).toLong()
-                lastRx = rxBytes; lastTx = txBytes; lastStatsAt = now
+                val rxNow = rxBytes.get()
+                val txNow = txBytes.get()
+                rxPps.set(((rxNow - lastRx) / dt).toLong())
+                txPps.set(((txNow - lastTx) / dt).toLong())
+                lastRx = rxNow; lastTx = txNow; lastStatsAt = now
                 sendBroadcast(
                     Intent(ACTION_STATS).setPackage(packageName)
-                        .putExtra(EXTRA_RX_BYTES, rxBytes)
-                        .putExtra(EXTRA_TX_BYTES, txBytes)
-                        .putExtra(EXTRA_RX_PPS, rxPps)
-                        .putExtra(EXTRA_TX_PPS, txPps)
-                        .putExtra(EXTRA_DROPPED, dropped)
+                        .putExtra(EXTRA_RX_BYTES, rxNow)
+                        .putExtra(EXTRA_TX_BYTES, txNow)
+                        .putExtra(EXTRA_RX_PPS, rxPps.get())
+                        .putExtra(EXTRA_TX_PPS, txPps.get())
+                        .putExtra(EXTRA_DROPPED, dropped.get())
                 )
                 if (!daemon.isAlive()) {
                     publishLog("ERROR", "Le démon meshd s'est arrêté (pid=${started.pid})")
@@ -368,7 +372,7 @@ class MeshVpnService : VpnService() {
                 }
             }
         }
-        linkUp = false
+        linkUp.set(false)
         try { socket?.close() } catch (_: Exception) {}
         try { input.close() } catch (_: Exception) {}
         try { output.close() } catch (_: Exception) {}

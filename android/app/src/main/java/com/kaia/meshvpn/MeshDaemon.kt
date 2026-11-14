@@ -36,7 +36,7 @@ class MeshDaemon(private val ctx: Context) {
         val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull()
             ?: throw IllegalStateException("aucune ABI supportée")
         val inApk = "lib/$abi/$LIB_NAME"
-        var stream = ctx.applicationInfo.nativeLibraryDir?.let { dir ->
+        var stream: java.io.InputStream? = ctx.applicationInfo.nativeLibraryDir?.let { dir ->
             File(dir, LIB_NAME).takeIf { it.exists() }?.inputStream()
         }
         if (stream == null) stream = ctx.assets.open(inApk)
