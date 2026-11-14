@@ -38,9 +38,17 @@ public sealed class MeshWorker : BackgroundService
         }
     }
 
-    public override void Dispose()
+    private bool _disposed;
+
+    protected override void Dispose(bool disposing)
     {
-        try { _daemon?.Kill(); } catch { /* déjà arrêté */ }
-        base.Dispose();
+        if (_disposed) return;
+        if (disposing)
+        {
+            try { _daemon?.Kill(); } catch { }
+            _daemon?.Dispose();
+        }
+        _disposed = true;
+        base.Dispose(disposing);
     }
 }
