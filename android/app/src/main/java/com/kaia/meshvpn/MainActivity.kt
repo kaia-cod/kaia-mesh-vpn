@@ -3,20 +3,23 @@ package com.kaia.meshvpn
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kaia.meshvpn.mesh.MeshViewModel
@@ -82,13 +85,18 @@ class MainActivity : ComponentActivity() {
             Log.i(TAG, "Compose UI affichée")
         } catch (e: Exception) {
             Log.e(TAG, "Compose init failed, repli texte", e)
-            setContentView(
-                TextView(this).apply {
-                    text = "Kaia Mesh VPN\n\nErreur d'initialisation de l'interface : ${e.message}"
-                    setPadding(48, 96, 48, 48)
-                    setTextColor(Color.WHITE)
+            setContent {
+                KaiaMeshTheme {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = "Kaia Mesh VPN\n\nErreur d'initialisation de l'interface : ${e.message}",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.padding(24.dp),
+                            fontSize = 16.sp,
+                        )
+                    }
                 }
-            )
+            }
         }
     }
 
