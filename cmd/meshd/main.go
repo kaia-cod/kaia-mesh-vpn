@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"flag"
 	"fmt"
 	"log"
@@ -87,7 +88,7 @@ func split(s string) []string {
 }
 
 func loadOrCreateSeed(path string) []byte {
-	if b, err := os.ReadFile(path); err == nil && len(b) == 64 {
+	if b, err := os.ReadFile(path); err == nil && len(b) == ed25519.SeedSize {
 		return b
 	}
 	seed, err := config.NewIdentity()
