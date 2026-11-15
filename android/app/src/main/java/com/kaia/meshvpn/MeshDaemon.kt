@@ -45,7 +45,7 @@ class MeshDaemon(private val ctx: Context) {
         const val ERR_ABI_UNSUPPORTED =
             "Could not start the tunnel — this device's CPU architecture is not supported by this build"
         const val ERR_DAEMON_START =
-            "Could not start the tunnel — the mesh daemon failed to launch"
+            "Could not start the tunnel — the background daemon failed to launch"
     }
 
     data class LaunchResult(val ok: Boolean, val pid: Int, val error: String?) {

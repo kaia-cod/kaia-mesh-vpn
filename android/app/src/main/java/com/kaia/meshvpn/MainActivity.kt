@@ -124,13 +124,13 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "connectTunnel failed", e)
-            vm.setTunnel(TunnelState.ERROR, "Could not start the tunnel: ${e.message}")
+            vm.setTunnel(TunnelState.ERROR, "Could not start the tunnel. Please try again, or reinstall the app if the problem persists.")
         }
     }
 
     private fun disconnectTunnel() {
         runCatching { MeshVpnService.stop(this) }
-            .onFailure { vm.setTunnel(TunnelState.ERROR, "Could not stop the tunnel: ${it.message}") }
+            .onFailure { vm.setTunnel(TunnelState.ERROR, "Could not stop the tunnel. Please try again.") }
         vm.noteLocal("INFO", "Disconnect requested")
     }
 

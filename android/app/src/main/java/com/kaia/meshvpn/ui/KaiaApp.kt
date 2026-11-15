@@ -527,8 +527,8 @@ private fun LogPanel(logs: List<LogLine>) {
 @Composable
 private fun HonestyFooter() {
     Text(
-        "This mesh does not route to any commercial server: the peers listed are the nodes you " +
-            "operate. No displayed data is simulated.",
+        "No traffic ever transits a commercial server: the peers listed are nodes that you " +
+            "operate yourself. Nothing displayed here is simulated.",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
         textAlign = TextAlign.Center,

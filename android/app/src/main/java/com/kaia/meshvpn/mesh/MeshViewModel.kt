@@ -63,7 +63,7 @@ class MeshViewModel : ViewModel() {
                             TunnelState.CONNECTING -> "TUN up (VIP=$vip) · waiting for the meshd daemon"
                             TunnelState.PREPARING -> "Preparing: VPN permission / service startup"
                             TunnelState.DISCONNECTED -> "Tunnel stopped"
-                            TunnelState.ERROR -> "Tunnel failed: ${err ?: "cause inconnue"}"
+                            TunnelState.ERROR -> "Tunnel failed: ${err ?: "unknown cause"}"
                         }
                     )
                 }
