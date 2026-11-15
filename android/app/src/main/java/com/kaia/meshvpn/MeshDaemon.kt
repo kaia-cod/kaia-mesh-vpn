@@ -121,30 +121,30 @@ class MeshDaemon(private val ctx: Context) {
     private fun nativeLibraryBinary(): File? {
         val dir = nativeLibraryDir
         if (dir.isNullOrBlank()) {
-            val why = "applicationInfo.nativeLibraryDir is empty"
+            val why: String = "applicationInfo.nativeLibraryDir is empty"
             fallbackReason = why
             Log.w(TAG, why)
             return null
         }
         val f = BinaryPaths.nativeLibBinary(dir) ?: run {
-            val why = "nativeLibraryDir path could not be built"
+            val why: String = "nativeLibraryDir path could not be built"
             fallbackReason = why
             Log.w(TAG, why)
             return null
         }
         if (!BinaryPaths.isAllowedExecPath(f.absolutePath, dir, ctx.codeCacheDir?.absolutePath)) {
-            val why = "refusing a forbidden exec location: ${f.absolutePath}"
+            val why: String = "refusing a forbidden exec location: ${f.absolutePath}"
             fallbackReason = why
             Log.e(TAG, why)
             return null
         }
         if (!f.exists()) {
             fallbackReason = "${BinaryPaths.LIB_NAME} absent from nativeLibraryDir"
-            Log.w(TAG, "$fallbackReason (files=${runCatching { File(dir).list()?.joinToString(",") }.getOrNull()})")
+            Log.w(TAG, "${fallbackReason ?: "unknown"} (files=${runCatching { File(dir).list()?.joinToString(",") }.getOrNull()})")
             return null
         }
         if (!BinaryGate.isUsableBin(f)) {
-            val why = "${BinaryPaths.LIB_NAME} in nativeLibraryDir is not a usable ELF (len=${f.length()})"
+            val why: String = "${BinaryPaths.LIB_NAME} in nativeLibraryDir is not a usable ELF (len=${f.length()})"
             fallbackReason = why
             Log.w(TAG, why)
             return null
