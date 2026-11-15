@@ -62,6 +62,13 @@ class MeshDaemon(private val ctx: Context) {
     private var process: Process? = null
     private var usedAbi: String? = null
 
+    /**
+     * Why the primary location (nativeLibraryDir) was rejected, if it was. Logged
+     * explicitly so a field report tells us instantly whether the fallback ran.
+     */
+    var fallbackReason: String? = null
+        private set
+
     /** Path of the binary that is actually launched (for logs / UI). */
     var executablePath: String = ""
         private set
@@ -114,21 +121,28 @@ class MeshDaemon(private val ctx: Context) {
     private fun nativeLibraryBinary(): File? {
         val dir = nativeLibraryDir
         if (dir.isNullOrBlank()) {
-            Log.w(TAG, "applicationInfo.nativeLibraryDir is empty")
+            fallbackReason = "applicationInfo.nativeLibraryDir is empty"
+            Log.w(TAG, fallbackReason)
             return null
         }
-        val f = BinaryPaths.nativeLibBinary(dir) ?: return null
+        val f = BinaryPaths.nativeLibBinary(dir) ?: run {
+            fallbackReason = "nativeLibraryDir path could not be built"
+            Log.w(TAG, fallbackReason)
+            return null
+        }
         if (!BinaryPaths.isAllowedExecPath(f.absolutePath, dir, ctx.codeCacheDir?.absolutePath)) {
-            Log.e(TAG, "refusing a forbidden exec location: ${f.absolutePath}")
+            fallbackReason = "refusing a forbidden exec location: ${f.absolutePath}"
+            Log.e(TAG, fallbackReason)
             return null
         }
         if (!f.exists()) {
-            Log.w(TAG, "${BinaryPaths.LIB_NAME} absent from nativeLibraryDir"
-                + " (files=${runCatching { File(dir).list()?.joinToString(",") }.getOrNull()})")
+            fallbackReason = "${BinaryPaths.LIB_NAME} absent from nativeLibraryDir"
+            Log.w(TAG, "$fallbackReason (files=${runCatching { File(dir).list()?.joinToString(",") }.getOrNull()})")
             return null
         }
         if (!BinaryGate.isUsableBin(f)) {
-            Log.w(TAG, "${BinaryPaths.LIB_NAME} in nativeLibraryDir is not a usable ELF (len=${f.length()})")
+            fallbackReason = "${BinaryPaths.LIB_NAME} in nativeLibraryDir is not a usable ELF (len=${f.length()})"
+            Log.w(TAG, fallbackReason)
             return null
         }
         if (!f.canExecute()) {
@@ -198,7 +212,12 @@ class MeshDaemon(private val ctx: Context) {
      */
     private fun resolveBinary(): Result<File> {
         resolveAbi()
-        nativeLibraryBinary()?.let { return Result.success(it) }
+        nativeLibraryBinary()?.let {
+            fallbackReason = null
+            Log.i(TAG, "exec decision: nativeLibraryDir (${it.absolutePath})")
+            return Result.success(it)
+        }
+        Log.w(TAG, "exec decision: FALLBACK codeCacheDir — reason: ${fallbackReason ?: "unknown"}")
 
         var lastError: Throwable? = null
         for (attempt in 1..MAX_INSTALL_ATTEMPTS) {
@@ -240,7 +259,31 @@ class MeshDaemon(private val ctx: Context) {
                 BinaryPaths.NATIVE_LIB_DIR
             else -> BinaryPaths.FALLBACK_DIR_NAME
         }
-        Log.i(TAG, "exec method=$method path=${exec.absolutePath}")
+        Log.i(TAG, "exec method=$method path=${exec.absolutePath}"
+            + (fallbackReason?.let { " (fallback reason: $it)" } ?: ""))
+
+        // --- 1b. Runtime assertion: the launched file IS nativeLibraryDir/libmeshd.so
+        //         whenever the package manager installed it. This is the invariant the
+        //         whole noexec/W^X fix rests on, so it is enforced, not just logged:
+        //         a mismatch aborts the launch with a readable, path-free error.
+        val expected: File? = BinaryPaths.nativeLibBinary(nativeLibraryDir)
+        if (expected != null && expected.exists()) {
+            val expectedPath = expected.absolutePath
+            if (exec.absolutePath != expectedPath) {
+                Log.e(
+                    TAG,
+                    "ASSERTION FAILED: exec path=${exec.absolutePath} != expected nativeLibraryDir=$expectedPath" +
+                        " (fallback reason: ${fallbackReason ?: "none"})",
+                )
+                return LaunchResult(false, 0, ERR_BINARY_MISSING)
+            }
+            Log.i(TAG, "ASSERTION OK: exec path == File(applicationInfo.nativeLibraryDir, \"${BinaryPaths.LIB_NAME}\")")
+        } else {
+            Log.w(
+                TAG,
+                "ASSERTION SKIPPED: ${BinaryPaths.LIB_NAME} absent from nativeLibraryDir, running fallback (${exec.absolutePath})",
+            )
+        }
 
         // Last guard: never exec from filesDir or any .../install path again.
         if (!isAllowed(exec.absolutePath)) {
@@ -289,6 +332,7 @@ class MeshDaemon(private val ctx: Context) {
         } catch (e: Exception) {
             // Never surface the raw path (e.g. "Cannot run program /data/user/0/...").
             Log.e(TAG, "start meshd failed (path=${exec.absolutePath})", e)
+            // The raw path stays in logcat only: the UI never sees /data/...
             LaunchResult(false, 0, ERR_DAEMON_START)
         }
     }

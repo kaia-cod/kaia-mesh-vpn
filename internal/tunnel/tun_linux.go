@@ -59,10 +59,7 @@ func OpenTUN(name string) (*TUN, error) {
 
 	// Defensive: force blocking mode even if the descriptor was inherited
 	// non-blocking.
-	flags, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), uintptr(syscall.F_GETFL), 0)
-	if errno == 0 && flags&uintptr(syscall.O_NONBLOCK) != 0 {
-		syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), uintptr(syscall.F_SETFL), flags&^uintptr(syscall.O_NONBLOCK))
-	}
+	forceBlocking(fd)
 
 	actual := make([]byte, 0, ifNameSize)
 	for _, c := range req.Name {
@@ -76,6 +73,16 @@ func OpenTUN(name string) (*TUN, error) {
 
 // Name returns the real interface name assigned by the kernel.
 func (t *TUN) Name() string { return t.name }
+
+// forceBlocking clears O_NONBLOCK on fd if it is set. Android's
+// ParcelFileDescriptor may hand over a non-blocking descriptor, which would
+// make ReadPacket spin on EAGAIN instead of sleeping in the kernel.
+func forceBlocking(fd int) {
+	flags, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), uintptr(syscall.F_GETFL), 0)
+	if errno == 0 && flags&uintptr(syscall.O_NONBLOCK) != 0 {
+		syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), uintptr(syscall.F_SETFL), flags&^uintptr(syscall.O_NONBLOCK))
+	}
+}
 
 // ReadPacket reads one IP packet from the interface into pkt.
 func (t *TUN) ReadPacket(pkt []byte) (int, error) {

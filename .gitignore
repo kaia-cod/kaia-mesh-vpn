@@ -11,7 +11,6 @@ local.properties
 /vendor/
 meshd
 /meshd
-android/app/src/main/jniLibs/
 *.apk
 e2e-proof.log
 
@@ -25,3 +24,7 @@ dist/
 # build artifacts / backups
 android/app/build/
 android/app/src/main/jniLibs.bak/
+
+# local Go build cache (Kaia)
+.gocache/
+workspace/

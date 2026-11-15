@@ -23,17 +23,29 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Verify Android SDK is present on the runner
+      - name: Resolve Android SDK (ANDROID_HOME / ANDROID_SDK_ROOT / default paths)
         run: |
           set -euo pipefail
           echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}"
           echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-<unset>}"
-          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-          test -n "$SDK" || { echo "::error::no Android SDK env var"; exit 1; }
-          test -d "$SDK" || { echo "::error::SDK dir missing: $SDK"; exit 1; }
+          # The ubuntu-latest image sometimes exports only ANDROID_HOME, sometimes
+          # neither: fall back to the well-known image location.
+          SDK=""
+          for c in "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}" "$HOME/Android/Sdk" \
+                   "/usr/local/lib/android/sdk" "/opt/android-sdk"; do
+            if [ -n "$c" ] && [ -d "$c" ] && [ -d "$c/platform-tools" -o -d "$c/cmdline-tools" -o -d "$c/licenses" ]; then
+              SDK="$c"; break
+            fi
+          done
+          if [ -z "$SDK" ]; then
+            echo "::error::no usable Android SDK found (tried ANDROID_HOME, ANDROID_SDK_ROOT, $HOME/Android/Sdk, /usr/local/lib/android/sdk, /opt/android-sdk)"
+            exit 1
+          fi
+          echo "Using Android SDK at: $SDK"
           ls "$SDK" | head -20
-          # Belt and braces: Gradle also reads sdk.dir from local.properties, so the
-          # build keeps working even if the runner only exposes one of the two vars.
+          # Export for the whole job AND write sdk.dir for Gradle.
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
           echo "sdk.dir=$SDK" > android/local.properties
           cat android/local.properties
 
@@ -44,6 +56,9 @@ jobs:
           CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
             go build -trimpath -ldflags="-s -w" \
             -o android/app/src/main/jniLibs/arm64-v8a/libmeshd.so ./cmd/meshd
+          # The packaged libmeshd.so is the ONLY exec location on device
+          # (nativeLibraryDir). Its exact bytes must be the ones we just built.
+          ( cd android/app/src/main/jniLibs/arm64-v8a && sha256sum libmeshd.so | tee libmeshd.so.sha256 )
 
       - name: Assert meshd arm64 binary is non-empty and correctly typed
         run: |
@@ -92,7 +107,9 @@ jobs:
           test -n "$APK" || { echo "::error::no debug APK produced"; exit 1; }
           ls -l "$APK"
           unzip -l "$APK" | tee /tmp/apk-contents.txt
-          grep -q 'lib/arm64-v8a/libmeshd.so' /tmp/apk-contents.txt \
+          # Exact entry check (plain grep -F: no ERE escaping trap), and only the
+          # fresh jniLibs copy is accepted (jniLibs.bak is git-ignored).
+          grep -F -q 'lib/arm64-v8a/libmeshd.so' /tmp/apk-contents.txt \
             || { echo "::error::meshd not packaged in the APK"; exit 1; }
           # Robust check: Python zipfile gives real uncompressed sizes. Parsing
           # `zipinfo -l` / `unzip -lv` text columns was the fragile part that made
@@ -103,12 +120,29 @@ jobs:
           echo "meshd inside APK = $UNPACKED bytes"
           test -n "$UNPACKED" || { echo "::error::could not read meshd size from APK listing"; exit 1; }
           test "$UNPACKED" -gt 1000000 || { echo "::error::packaged meshd too small ($UNPACKED)"; exit 1; }
+
+          # ---- Integrity assertion: the .so INSIDE the APK is byte-for-byte the
+          # ---- binary we just cross-compiled. Without this, an APK could ship an
+          # ---- old/stale libmeshd.so and the app would still fail on device.
+          unzip -p "$APK" lib/arm64-v8a/libmeshd.so > /tmp/meshd_from_apk.so
+          SHA_APK=$(sha256sum /tmp/meshd_from_apk.so | cut -d' ' -f1)
+          SHA_BUILT=$(sha256sum android/app/src/main/jniLibs/arm64-v8a/libmeshd.so | cut -d' ' -f1)
+          echo "sha256 built  = $SHA_BUILT"
+          echo "sha256 in APK = $SHA_APK"
+          test "$SHA_APK" = "$SHA_BUILT" || {
+            echo "::error::sha256 mismatch: libmeshd.so inside the APK differs from the freshly built binary"
+            exit 1
+          }
+          echo "::notice::sha256 OK - APK ships the freshly built meshd arm64-v8a ($SHA_BUILT)"
+
           {
             echo "### Android build proof"
             echo ""
             echo "- meshd arm64-v8a (standalone): **${{ env.meshd_arm64_size }} bytes**"
             echo "- meshd packaged in APK: **$UNPACKED bytes**"
-            echo "- APK: `$(basename "$APK")`"
+            echo "- sha256 (built == packaged): \`$SHA_BUILT\`"
+            echo "- exec location enforced on device: \`applicationInfo.nativeLibraryDir/libmeshd.so\`"
+            echo "- APK: \`$(basename "$APK")\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload APK
@@ -121,4 +155,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: meshd-arm64-v8a
-          path: android/app/src/main/jniLibs/arm64-v8a/libmeshd.so
+          path: |
+            android/app/src/main/jniLibs/arm64-v8a/libmeshd.so
+            android/app/src/main/jniLibs/arm64-v8a/libmeshd.so.sha256

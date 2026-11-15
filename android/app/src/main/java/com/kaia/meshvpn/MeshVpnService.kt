@@ -250,7 +250,7 @@ class MeshVpnService : VpnService() {
             }
             return
         }
-        publishLog("OK", "meshd daemon started · pid=${started.pid} · method=${started.method} · socket=${daemon.socketPath}")
+        publishLog("OK", "meshd daemon started · pid=${started.pid} · exec=${started.method} · socket=${daemon.socketPath}")
 
         // --- Connection to the daemon's local socket ---
         var socket: LocalSocket? = null
