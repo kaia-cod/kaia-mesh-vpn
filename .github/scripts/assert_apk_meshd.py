@@ -37,6 +37,8 @@ with zipfile.ZipFile(apk) as z:
         sys.exit(1)
 
     size = z.getinfo(TARGET).file_size
+    # Machine-readable key line, stable and matched by the workflow grep:
+    #   meshd inside APK = <bytes> bytes (uncompressed)
     print(f"meshd inside APK = {size} bytes (uncompressed)")
 
     with z.open(TARGET) as fh:
